@@ -56,16 +56,29 @@ app.use(helmet({
 }));
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
+import cors from "cors";
+
 const allowedOrigins = env.CORS_ORIGIN === "*"
   ? "*"
   : env.CORS_ORIGIN.split(",").map(s => s.trim()).filter(Boolean);
 
 app.use(cors({
-  origin:         allowedOrigins,
-  methods:        ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  origin: (origin, callback) => {
+    // permite requests sem origin (Postman, curl)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins === "*") return callback(null, true);
+
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+
+    return callback(new Error("Not allowed by CORS"));
+  },
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
-  credentials:    allowedOrigins !== "*",
-  maxAge:         86400,   // cache preflight responses for 24 h
+  credentials: true,
+  maxAge: 86400,
 }));
 
 // ── Stripe webhook — RAW body MUST come before express.json() ─────────────────
