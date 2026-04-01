@@ -55,16 +55,14 @@ app.use(helmet({
   crossOriginOpenerPolicy:       false,
 }));
 
-// ── CORS ──────────────────────────────────────────────────────────────────────
-import cors from "cors";
 
+// ── CORS ──────────────────────────────────────────────────────────────────────
 const allowedOrigins = env.CORS_ORIGIN === "*"
   ? "*"
   : env.CORS_ORIGIN.split(",").map(s => s.trim()).filter(Boolean);
 
 app.use(cors({
   origin: (origin, callback) => {
-    // permite requests sem origin (Postman, curl)
     if (!origin) return callback(null, true);
 
     if (allowedOrigins === "*") return callback(null, true);
