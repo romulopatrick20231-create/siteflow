@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ForgeSites AI — Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0F172A;
+      --card: #1E293B;
+      --border: #334155;
+      --txt: #F1F5F9;
+      --txt2: #94A3B8;
+      --p: #6366F1;
+      --pl: rgba(99,102,241,.15);
+      --green: #10B981;
+      --yellow: #F59E0B;
+      --red: #EF4444;
+      --blue: #3B82F6;
+      --r: 12px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--txt);
+      min-height: 100vh;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* ── Layout ──────────────────────────────── */
+    .topbar {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-brand { font-size: 16px; font-weight: 800; color: var(--p); }
+    .topbar-right { display: flex; align-items: center; gap: 14px; }
+    .refresh-btn {
+      background: var(--pl);
+      color: var(--p);
+      border: 1px solid var(--p);
+      border-radius: 8px;
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .refresh-btn:hover { background: rgba(99,102,241,.3); }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+    }
+    .status-label { font-size: 12px; color: var(--txt2); }
+
+    .main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; }
+
+    /* ── Config bar ──────────────────────────── */
+    .config-bar {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 16px 20px;
+      margin-bottom: 28px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-end;
+      flex-wrap: wrap;
+    }
+    .config-field { display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 200px; }
+    .config-field label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--txt2); }
+    .config-field input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 13px;
+      font-size: 13px;
+      color: var(--txt);
+      outline: none;
+      font-family: 'Courier New', monospace;
+      transition: border-color .2s;
+    }
+    .config-field input:focus { border-color: var(--p); }
+    .connect-btn {
+      background: var(--p);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 24px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: opacity .2s;
+    }
+    .connect-btn:hover { opacity: .85; }
+    .config-hint { font-size: 11px; color: var(--txt2); margin-top: 6px; }
+
+    /* ── Stats grid ──────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .stat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 22px 20px;
+    }
+    .stat-label { font-size: 12px; font-weight: 600; color: var(--txt2); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 8px; }
+    .stat-value { font-size: 34px; font-weight: 900; line-height: 1; }
+    .stat-sub { font-size: 12px; color: var(--txt2); margin-top: 6px; }
+
+    /* ── Status breakdown ────────────────────── */
+    .breakdown-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .breakdown-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 22px 20px;
+    }
+    .breakdown-card h3 { font-size: 13px; font-weight: 700; color: var(--txt2); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 16px; }
+    .breakdown-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .breakdown-item:last-child { border-bottom: none; }
+    .breakdown-key { font-size: 14px; display: flex; align-items: center; gap: 8px; }
+    .breakdown-val { font-size: 14px; font-weight: 700; }
+    .pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+    }
+    .pill-high    { background: rgba(239,68,68,.15);  color: #EF4444; }
+    .pill-medium  { background: rgba(245,158,11,.15); color: #F59E0B; }
+    .pill-low     { background: rgba(148,163,184,.15);color: #94A3B8; }
+    .pill-new       { background: rgba(99,102,241,.15); color: #818CF8; }
+    .pill-processed { background: rgba(16,185,129,.15);color: #10B981; }
+    .pill-contacted { background: rgba(59,130,246,.15); color: #60A5FA; }
+    .pill-replied   { background: rgba(245,158,11,.15); color: #F59E0B; }
+    .pill-closed    { background: rgba(239,68,68,.15);  color: #F87171; }
+
+    /* ── Filter bar ──────────────────────────── */
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+    .filter-bar span { font-size: 13px; color: var(--txt2); font-weight: 600; }
+    .filter-btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--txt2);
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .filter-btn:hover, .filter-btn.active {
+      border-color: var(--p);
+      color: var(--p);
+      background: var(--pl);
+    }
+
+    /* ── Leads table ─────────────────────────── */
+    .table-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      overflow: hidden;
+    }
+    .table-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .table-header h3 { font-size: 15px; font-weight: 700; }
+    .table-count { font-size: 13px; color: var(--txt2); }
+    table { width: 100%; border-collapse: collapse; }
+    th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--txt2);
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,0,0,.15);
+    }
+    td {
+      padding: 13px 16px;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,.03); }
+    .td-name { font-weight: 600; }
+    .td-niche { color: var(--txt2); font-size: 12px; }
+    .td-phone { font-family: monospace; font-size: 12px; }
+    .td-score { font-weight: 700; }
+    .td-url a {
+      color: var(--p);
+      font-size: 12px;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .td-url a:hover { text-decoration: underline; }
+    .score-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .score-track {
+      flex: 1;
+      height: 5px;
+      background: var(--border);
+      border-radius: 3px;
+      overflow: hidden;
+      min-width: 40px;
+    }
+    .score-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--p);
+    }
+    .wa-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(37,211,102,.12);
+      color: #25D366;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background .15s;
+    }
+    .wa-link:hover { background: rgba(37,211,102,.22); }
+
+    /* ── Empty / Loading ─────────────────────── */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: var(--txt2);
+    }
+    .empty-icon { font-size: 42px; margin-bottom: 12px; }
+    .empty-state h3 { font-size: 17px; font-weight: 700; color: var(--txt); margin-bottom: 6px; }
+    .empty-state p { font-size: 14px; }
+    .loading { animation: spin .8s linear infinite; display: inline-block; }
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    .toast {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      background: #1E293B;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      transition: opacity .3s;
+      z-index: 999;
+    }
+    .toast.hidden { opacity: 0; pointer-events: none; }
+
+    @media (max-width: 768px) {
+      .main { padding: 20px 16px; }
+      .topbar { padding: 0 16px; }
+      th:nth-child(n+5), td:nth-child(n+5) { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Top Bar ──────────────────────────────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-brand">⚡ ForgeSites AI</div>
+  <div class="topbar-right">
+    <div class="status-dot" id="statusDot" style="background:#94A3B8;box-shadow:none"></div>
+    <span class="status-label" id="statusLabel">Not connected</span>
+    <button class="refresh-btn" onclick="loadData()">↻ Refresh</button>
+  </div>
+</div>
+
+<!-- ── Main ─────────────────────────────────────────────────────────────────── -->
+<div class="main">
+
+  <!-- Config -->
+  <div class="config-bar" id="configBar">
+    <div class="config-field">
+      <label>Supabase URL</label>
+      <input id="sbUrl" type="text" placeholder="https://xxxx.supabase.co">
+    </div>
+    <div class="config-field">
+      <label>Supabase Anon Key</label>
+      <input id="sbKey" type="password" placeholder="eyJhbGci...">
+    </div>
+    <button class="connect-btn" onclick="connect()">Connect</button>
+  </div>
+  <p class="config-hint" id="configHint" style="margin-bottom:20px;display:none"></p>
+
+  <!-- Stats -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Leads</div>
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-sub">in database</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">High Priority</div>
+      <div class="stat-value" style="color:#EF4444" id="statHigh">—</div>
+      <div class="stat-sub">score ≥ 5</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Sites Deployed</div>
+      <div class="stat-value" style="color:#10B981" id="statDeployed">—</div>
+      <div class="stat-sub">live URLs</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg Score</div>
+      <div class="stat-value" style="color:#6366F1" id="statAvg">—</div>
+      <div class="stat-sub">out of 10</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Contacted</div>
+      <div class="stat-value" style="color:#3B82F6" id="statContacted">—</div>
+      <div class="stat-sub">outreach sent</div>
+    </div>
+  </div>
+
+  <!-- Breakdowns -->
+  <div class="breakdown-row">
+    <div class="breakdown-card">
+      <h3>By Status</h3>
+      <div id="byStatus"><div class="empty-state" style="padding:16px"><span class="loading">⟳</span></div></div>
+    </div>
+    <div class="breakdown-card">
+      <h3>By Priority</h3>
+      <div id="byPriority"><div class="empty-state" style="padding:16px"><span class="loading">⟳</span></div></div>
+    </div>
+    <div class="breakdown-card">
+      <h3>Site Quality</h3>
+      <div id="bySiteStatus"><div class="empty-state" style="padding:16px"><span class="loading">⟳</span></div></div>
+    </div>
+  </div>
+
+  <!-- Filter -->
+  <div class="filter-bar">
+    <span>Filter:</span>
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('new', this)">New</button>
+    <button class="filter-btn" onclick="setFilter('processed', this)">Processed</button>
+    <button class="filter-btn" onclick="setFilter('contacted', this)">Contacted</button>
+    <button class="filter-btn" onclick="setFilter('replied', this)">Replied</button>
+    <button class="filter-btn" onclick="setFilter('closed', this)">Closed</button>
+    <button class="filter-btn" onclick="setFilter('high', this)" style="margin-left:8px">🔥 High Priority</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-card">
+    <div class="table-header">
+      <h3>Recent Leads</h3>
+      <span class="table-count" id="tableCount"></span>
+    </div>
+    <div id="tableWrap">
+      <div class="empty-state">
+        <div class="empty-icon">🔌</div>
+        <h3>Connect to Supabase</h3>
+        <p>Enter your credentials above to load leads.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast hidden" id="toast"></div>
+
+<script>
+  let supabase = null;
+  let allLeads = [];
+  let activeFilter = 'all';
+
+  // ── Load saved credentials ──────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    const savedUrl = localStorage.getItem('sb_url');
+    const savedKey = localStorage.getItem('sb_key');
+    if (savedUrl) document.getElementById('sbUrl').value = savedUrl;
+    if (savedKey) document.getElementById('sbKey').value = savedKey;
+    if (savedUrl && savedKey) connect(true);
+  });
+
+  function showToast(msg, color = '#10B981') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.style.borderColor = color;
+    t.classList.remove('hidden');
+    setTimeout(() => t.classList.add('hidden'), 3000);
+  }
+
+  async function connect(silent = false) {
+    const url = document.getElementById('sbUrl').value.trim();
+    const key = document.getElementById('sbKey').value.trim();
+    if (!url || !key) { showToast('Enter URL and Key', '#EF4444'); return; }
+
+    localStorage.setItem('sb_url', url);
+    localStorage.setItem('sb_key', key);
+
+    supabase = window.supabase.createClient(url, key, { auth: { persistSession: false } });
+    if (!silent) showToast('Connecting...');
+
+    document.getElementById('configBar').style.display = 'none';
+
+    await loadData();
+  }
+
+  async function loadData() {
+    if (!supabase) { showToast('Not connected', '#EF4444'); return; }
+
+    updateStatus('loading');
+
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      if (error) throw error;
+
+      allLeads = data || [];
+      updateStatus('connected');
+      renderStats(allLeads);
+      renderBreakdowns(allLeads);
+      renderTable(filterLeads(allLeads, activeFilter));
+      showToast(`✓ Loaded ${allLeads.length} leads`);
+    } catch (err) {
+      updateStatus('error');
+      showToast(`Error: ${err.message}`, '#EF4444');
+      document.getElementById('tableWrap').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">⚠️</div>
+          <h3>Connection Error</h3>
+          <p>${err.message}</p>
+        </div>`;
+    }
+  }
+
+  function updateStatus(state) {
+    const dot = document.getElementById('statusDot');
+    const lbl = document.getElementById('statusLabel');
+    const states = {
+      connected: ['#10B981', '0 0 8px #10B981', 'Connected'],
+      loading:   ['#F59E0B', '0 0 8px #F59E0B', 'Loading...'],
+      error:     ['#EF4444', '0 0 8px #EF4444', 'Error'],
+    };
+    const [bg, shadow, text] = states[state] || ['#94A3B8', 'none', 'Not connected'];
+    dot.style.background = bg;
+    dot.style.boxShadow = shadow;
+    lbl.textContent = text;
+  }
+
+  function renderStats(leads) {
+    const total = leads.length;
+    const high = leads.filter(l => l.priority === 'high').length;
+    const deployed = leads.filter(l => l.site_url).length;
+    const contacted = leads.filter(l => l.status === 'contacted' || l.status === 'replied' || l.status === 'closed').length;
+    const avgScore = total > 0
+      ? (leads.reduce((s, l) => s + (l.score || 0), 0) / total).toFixed(1)
+      : '—';
+
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statHigh').textContent = high;
+    document.getElementById('statDeployed').textContent = deployed;
+    document.getElementById('statContacted').textContent = contacted;
+    document.getElementById('statAvg').textContent = avgScore;
+  }
+
+  function renderBreakdown(elId, data, colorMap) {
+    const el = document.getElementById(elId);
+    const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+    if (entries.length === 0) {
+      el.innerHTML = '<div style="padding:12px;color:var(--txt2);font-size:13px">No data</div>';
+      return;
+    }
+    const total = entries.reduce((s, [, v]) => s + v, 0);
+    el.innerHTML = entries.map(([k, v]) => {
+      const pct = Math.round((v / total) * 100);
+      const cls = colorMap?.[k] || '';
+      return `
+        <div class="breakdown-item">
+          <div class="breakdown-key">
+            ${cls ? `<span class="pill pill-${k}">${k}</span>` : `<span style="font-size:13px">${k}</span>`}
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:60px;height:4px;background:var(--border);border-radius:2px;overflow:hidden">
+              <div style="width:${pct}%;height:100%;background:var(--p);border-radius:2px"></div>
+            </div>
+            <div class="breakdown-val">${v}</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  function renderBreakdowns(leads) {
+    const byStatus = {};
+    const byPriority = {};
+    const bySite = {};
+    leads.forEach(l => {
+      byStatus[l.status || 'new'] = (byStatus[l.status || 'new'] || 0) + 1;
+      byPriority[l.priority || 'low'] = (byPriority[l.priority || 'low'] || 0) + 1;
+      bySite[l.site_status || 'unknown'] = (bySite[l.site_status || 'unknown'] || 0) + 1;
+    });
+    renderBreakdown('byStatus', byStatus, true);
+    renderBreakdown('byPriority', byPriority, true);
+    renderBreakdown('bySiteStatus', bySite, false);
+  }
+
+  function filterLeads(leads, filter) {
+    if (filter === 'all') return leads;
+    if (filter === 'high') return leads.filter(l => l.priority === 'high');
+    return leads.filter(l => l.status === filter);
+  }
+
+  function setFilter(f, btn) {
+    activeFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const filtered = filterLeads(allLeads, f);
+    renderTable(filtered);
+  }
+
+  function renderTable(leads) {
+    const wrap = document.getElementById('tableWrap');
+    document.getElementById('tableCount').textContent = `${leads.length} leads`;
+
+    if (leads.length === 0) {
+      wrap.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">📭</div>
+          <h3>No leads found</h3>
+          <p>Try a different filter or process more leads.</p>
+        </div>`;
+      return;
+    }
+
+    const rows = leads.map(l => {
+      const waNum = (l.phone || '').replace(/\D/g, '');
+      const waFull = waNum.startsWith('55') ? waNum : `55${waNum}`;
+      const waHref = waNum ? `https://wa.me/${waFull}` : null;
+      const pct = Math.min(100, ((l.score || 0) / 10) * 100);
+      const dateStr = l.created_at
+        ? new Date(l.created_at).toLocaleDateString('pt-BR')
+        : '—';
+
+      return `<tr>
+        <td>
+          <div class="td-name">${esc(l.name || '—')}</div>
+          <div class="td-niche">${esc(l.niche || '')} · ${esc(l.neighborhood || '')} ${esc(l.city || '')}</div>
+        </td>
+        <td><span class="pill pill-${l.priority || 'low'}">${l.priority || 'low'}</span></td>
+        <td>
+          <div class="score-bar">
+            <span class="td-score">${l.score ?? '—'}</span>
+            <div class="score-track"><div class="score-fill" style="width:${pct}%"></div></div>
+          </div>
+        </td>
+        <td><span class="pill pill-${l.status || 'new'}">${l.status || 'new'}</span></td>
+        <td class="td-phone">${waNum ? `<a class="wa-link" href="${waHref}" target="_blank">📱 WA</a>` : '—'}</td>
+        <td class="td-url">${l.site_url ? `<a href="${esc(l.site_url)}" target="_blank">🌐 View</a>` : '<span style="color:var(--txt2);font-size:12px">—</span>'}</td>
+        <td style="color:var(--txt2);font-size:12px">${dateStr}</td>
+        <td>
+          <select onchange="changeStatus('${l.id}', this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:12px;color:var(--txt);cursor:pointer">
+            ${['new','processed','contacted','replied','closed'].map(s => `<option value="${s}" ${l.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+          </select>
+        </td>
+      </tr>`;
+    }).join('');
+
+    wrap.innerHTML = `
+      <div style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Business</th>
+            <th>Priority</th>
+            <th style="min-width:110px">Score</th>
+            <th>Status</th>
+            <th>Contact</th>
+            <th>Site</th>
+            <th>Date</th>
+            <th>Update</th>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  async function changeStatus(id, status) {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from('leads')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) {
+      showToast(`Update failed: ${error.message}`, '#EF4444');
+    } else {
+      const lead = allLeads.find(l => l.id === id);
+      if (lead) lead.status = status;
+      renderStats(allLeads);
+      renderBreakdowns(allLeads);
+      showToast(`✓ Status updated to "${status}"`);
+    }
+  }
+
+  function esc(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+</script>
+</body>
+</html>

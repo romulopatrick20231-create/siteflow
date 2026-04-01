@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ForgeSites AI — Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:#0F172A; --card:#1E293B; --border:#334155;
+      --txt:#F1F5F9; --txt2:#94A3B8; --p:#6366F1;
+      --pl:rgba(99,102,241,.15); --green:#10B981;
+      --yellow:#F59E0B; --red:#EF4444; --r:10px;
+    }
+    body { font-family:system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--txt); min-height:100vh; -webkit-font-smoothing:antialiased; }
+
+    /* Auth */
+    #auth-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    .auth-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:40px; width:380px; text-align:center; }
+    .auth-logo { font-size:24px; font-weight:900; color:var(--red); margin-bottom:6px; }
+
+    /* App */
+    #app-screen { display:none; }
+    .topbar { background:var(--card); border-bottom:1px solid var(--border); padding:0 28px; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:50; }
+    .brand { font-size:16px; font-weight:800; color:var(--red); }
+    .nav-tabs { display:flex; gap:4px; }
+    .nav-tab { padding:8px 16px; border-radius:8px; font-size:14px; font-weight:600; cursor:pointer; color:var(--txt2); border:none; background:none; transition:.15s; }
+    .nav-tab.active { background:var(--pl); color:var(--p); }
+    .content { padding:28px; max-width:1200px; margin:0 auto; }
+    .panel { display:none; }
+    .panel.active { display:block; }
+
+    /* Stats row */
+    .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:16px; margin-bottom:24px; }
+    .stat-card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); padding:16px 20px; }
+    .stat-num { font-size:28px; font-weight:900; }
+    .stat-label { font-size:13px; color:var(--txt2); margin-top:2px; }
+
+    /* Table */
+    .table-wrap { background:var(--card); border:1px solid var(--border); border-radius:var(--r); overflow:hidden; }
+    table { width:100%; border-collapse:collapse; font-size:14px; }
+    thead tr { background:rgba(255,255,255,.03); }
+    th { padding:12px 16px; text-align:left; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--txt2); white-space:nowrap; }
+    td { padding:12px 16px; border-top:1px solid var(--border); vertical-align:middle; }
+    tr:hover td { background:rgba(255,255,255,.02); }
+    .td-email { font-weight:600; max-width:200px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .td-url a { color:var(--p); font-size:12px; }
+
+    /* Badges */
+    .badge { display:inline-flex; align-items:center; padding:2px 10px; border-radius:100px; font-size:12px; font-weight:700; }
+    .badge-basic  { background:rgba(148,163,184,.15); color:var(--txt2); }
+    .badge-pro    { background:rgba(245,158,11,.15);  color:var(--yellow); }
+    .badge-admin  { background:rgba(239,68,68,.15);   color:var(--red); }
+    .badge-green  { background:rgba(16,185,129,.15);  color:var(--green); }
+    .badge-yellow { background:rgba(245,158,11,.15);  color:var(--yellow); }
+    .badge-red    { background:rgba(239,68,68,.15);   color:var(--red); }
+
+    /* Buttons */
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:6px; font-size:12px; font-weight:700; border:none; cursor:pointer; font-family:inherit; transition:.15s; white-space:nowrap; }
+    .btn-primary { background:var(--p); color:#fff; }
+    .btn-ghost { background:transparent; color:var(--txt2); border:1px solid var(--border); }
+    .btn-ghost:hover { color:var(--txt); }
+    .btn-green { background:var(--green); color:#fff; }
+    .btn-red { background:var(--red); color:#fff; }
+    .btn-yellow { background:var(--yellow); color:#000; }
+    .btn-lg { padding:10px 20px; font-size:14px; }
+    .actions-cell { display:flex; gap:6px; flex-wrap:wrap; }
+
+    /* Forms */
+    input[type=text],input[type=number],select {
+      background:var(--bg); border:1px solid var(--border); color:var(--txt);
+      border-radius:6px; padding:6px 10px; font-size:13px; font-family:inherit;
+    }
+    input:focus, select:focus { outline:none; border-color:var(--p); }
+
+    /* Modal */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:100; align-items:center; justify-content:center; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px; width:420px; }
+    .modal h3 { font-size:18px; font-weight:700; margin-bottom:16px; }
+    .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+    .form-group { display:flex; flex-direction:column; gap:6px; margin-bottom:12px; }
+    label { font-size:12px; font-weight:600; color:var(--txt2); }
+
+    /* Toast */
+    #toast-container { position:fixed; bottom:24px; right:24px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+    .toast { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px 18px; font-size:14px; display:flex; align-items:center; gap:10px; min-width:260px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.4); }
+    .toast.success { border-color:var(--green); }
+    .toast.error   { border-color:var(--red); }
+    @keyframes slideIn { from { transform:translateY(8px);opacity:0; } to { transform:translateY(0);opacity:1; } }
+
+    .spinner { width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .section-header h2 { font-size:18px; font-weight:800; }
+    .search-input { background:var(--card); border:1px solid var(--border); color:var(--txt); border-radius:8px; padding:8px 14px; font-size:13px; width:260px; }
+    .search-input:focus { outline:none; border-color:var(--p); }
+  </style>
+</head>
+<body>
+
+<!-- ── AUTH ──────────────────────────────────────────────────────────────── -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">🛡️ ForgeSites Admin</div>
+    <div style="color:var(--txt2);font-size:13px;margin-bottom:24px">Acesso restrito a administradores</div>
+    <div class="form-group"><label>Email</label><input type="email" id="auth-email" style="width:100%;padding:10px 12px"></div>
+    <div class="form-group"><label>Senha</label><input type="password" id="auth-password" style="width:100%;padding:10px 12px"></div>
+    <button class="btn btn-primary btn-lg" style="width:100%;margin-top:4px" onclick="doLogin()">Entrar como Admin</button>
+    <div id="auth-error" style="color:var(--red);font-size:13px;margin-top:10px;display:none"></div>
+  </div>
+</div>
+
+<!-- ── APP ───────────────────────────────────────────────────────────────── -->
+<div id="app-screen">
+  <div class="topbar">
+    <div class="brand">🛡️ Admin Panel</div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showPanel('users', this)">👥 Usuários</button>
+      <button class="nav-tab" onclick="showPanel('sites', this)">🌐 Sites</button>
+      <button class="nav-tab" onclick="showPanel('settings', this)">⚙️ Configurações</button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span id="admin-email" style="font-size:13px;color:var(--txt2)"></span>
+      <button class="btn btn-ghost" onclick="doLogout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ── USERS PANEL ─────────────────────────────────────────────────── -->
+    <div class="panel active" id="panel-users">
+      <div class="stats-row" id="user-stats"></div>
+
+      <div class="section-header">
+        <h2>👥 Usuários</h2>
+        <div style="display:flex;gap:10px;align-items:center">
+          <input class="search-input" placeholder="Buscar por email..." oninput="filterUsers(this.value)">
+          <button class="btn btn-primary" onclick="loadUsers()">↻ Atualizar</button>
+        </div>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Email</th>
+              <th>Plano</th>
+              <th>Status</th>
+              <th>Créditos IA</th>
+              <th>Publicações/mês</th>
+              <th>Sites</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="users-table-body">
+            <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--txt2)">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── SITES PANEL ─────────────────────────────────────────────────── -->
+    <div class="panel" id="panel-sites">
+      <div class="section-header">
+        <h2>🌐 Todos os Sites</h2>
+        <button class="btn btn-primary" onclick="loadSites()">↻ Atualizar</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Negócio</th>
+              <th>Nicho</th>
+              <th>Status</th>
+              <th>URL</th>
+              <th>Publicações</th>
+              <th>Última Publicação</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="sites-table-body">
+            <tr><td colspan="7" style="text-align:center;padding:32px;color:var(--txt2)">Carregando...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── SETTINGS PANEL ──────────────────────────────────────────────── -->
+    <div class="panel" id="panel-settings">
+      <h2 style="margin-bottom:20px">⚙️ Configurações Globais</h2>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px">
+        <!-- Monthly reset -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:24px">
+          <h3 style="margin-bottom:8px">🔄 Reset Mensal</h3>
+          <p style="color:var(--txt2);font-size:14px;margin-bottom:16px">Restaura créditos e contadores de publicação para todos os usuários conforme seus planos.</p>
+          <button class="btn btn-yellow btn-lg" onclick="doResetCredits()">Resetar Créditos de Todos</button>
+        </div>
+
+        <!-- Plans reference -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:24px">
+          <h3 style="margin-bottom:12px">📋 Planos</h3>
+          <table style="font-size:13px">
+            <thead><tr><th style="padding:6px 12px 6px 0">Plano</th><th style="padding:6px 12px">Créditos IA</th><th style="padding:6px 0">Publics./mês</th></tr></thead>
+            <tbody>
+              <tr><td style="padding:6px 12px 6px 0;color:var(--txt2)">Basic</td><td style="padding:6px 12px;text-align:center">10</td><td style="padding:6px 0;text-align:center">5</td></tr>
+              <tr><td style="padding:6px 12px 6px 0;color:var(--yellow)">Pro</td><td style="padding:6px 12px;text-align:center">50</td><td style="padding:6px 0;text-align:center">50</td></tr>
+              <tr><td style="padding:6px 12px 6px 0;color:var(--red)">Admin</td><td style="padding:6px 12px;text-align:center">9999</td><td style="padding:6px 0;text-align:center">9999</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── EDIT USER MODAL ───────────────────────────────────────────────────── -->
+<div class="modal-overlay" id="edit-user-modal">
+  <div class="modal">
+    <h3>✏️ Editar Usuário</h3>
+    <input type="hidden" id="edit-user-id">
+    <div id="edit-user-email" style="color:var(--txt2);font-size:13px;margin-bottom:16px"></div>
+    <div class="form-group">
+      <label>Plano</label>
+      <select id="edit-plan" style="width:100%;padding:8px 10px">
+        <option value="basic">Basic — 10 créditos, 5 publicações/mês</option>
+        <option value="pro">Pro — 50 créditos, 50 publicações/mês</option>
+        <option value="admin">Admin — ilimitado</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Créditos IA (sobreposição manual)</label>
+      <input type="number" id="edit-credits" min="0" max="9999" style="width:100%;padding:8px 10px">
+      <div style="font-size:11px;color:var(--txt2);margin-top:4px">Deixe em branco para usar o padrão do plano</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('edit-user-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="doSaveUser()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+const SUPABASE_URL  = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY";
+const API_BASE      = "http://localhost:3001";
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+let allUsers = [];
+let allSites = [];
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById("auth-email").value.trim();
+  const pass  = document.getElementById("auth-password").value;
+  const errEl = document.getElementById("auth-error");
+  errEl.style.display = "none";
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { errEl.textContent = error.message; errEl.style.display = "block"; return; }
+
+  // Verify admin
+  try {
+    await api("GET", "/admin/users");
+    document.getElementById("auth-screen").style.display = "none";
+    document.getElementById("app-screen").style.display  = "block";
+    document.getElementById("admin-email").textContent   = data.user.email;
+    await Promise.all([loadUsers(), loadSites()]);
+  } catch {
+    await sb.auth.signOut();
+    errEl.textContent = "Acesso negado. Esta conta não tem permissões de admin.";
+    errEl.style.display = "block";
+  }
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  document.getElementById("app-screen").style.display  = "none";
+  document.getElementById("auth-screen").style.display = "flex";
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────
+async function loadUsers() {
+  try {
+    allUsers = await api("GET", "/admin/users");
+    renderUsers(allUsers);
+    renderUserStats(allUsers);
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+async function loadSites() {
+  try {
+    allSites = await api("GET", "/admin/sites");
+    renderSites(allSites);
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+// ── Render users ──────────────────────────────────────────────────────────
+function renderUserStats(users) {
+  const total     = users.length;
+  const active    = users.filter(u => u.is_active).length;
+  const pro       = users.filter(u => u.plan === "pro").length;
+  const totalSites = users.reduce((s, u) => s + (u.total_sites || 0), 0);
+
+  document.getElementById("user-stats").innerHTML = `
+    <div class="stat-card"><div class="stat-num">${total}</div><div class="stat-label">Total de Usuários</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--green)">${active}</div><div class="stat-label">Contas Ativas</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--yellow)">${pro}</div><div class="stat-label">Plano Pro</div></div>
+    <div class="stat-card"><div class="stat-num" style="color:var(--p)">${totalSites}</div><div class="stat-label">Sites Criados</div></div>`;
+}
+
+function renderUsers(users) {
+  const tbody = document.getElementById("users-table-body");
+  if (users.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--txt2)">Nenhum usuário encontrado</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = users.map(u => {
+    const planBadge = `badge-${u.plan === "pro" ? "yellow" : u.plan === "admin" ? "red" : "basic"}`;
+    const statusBadge = u.is_active ? "badge-green" : "badge-red";
+    return `<tr>
+      <td class="td-email" title="${u.email}">${u.email}</td>
+      <td><span class="badge ${planBadge}">${u.plan}</span></td>
+      <td><span class="badge ${statusBadge}">${u.is_active ? "Ativo" : "Inativo"}</span></td>
+      <td><span style="color:${u.credits_remaining > 0 ? 'var(--green)' : 'var(--red)'};font-weight:700">
+        ${u.credits_remaining ?? 0}</span></td>
+      <td>${u.publish_count_month ?? 0} / ${u.publish_limit ?? 5}</td>
+      <td>${u.total_sites ?? 0} (${u.published_sites ?? 0} pub)</td>
+      <td>
+        <div class="actions-cell">
+          <button class="btn btn-primary" onclick='openEditUser(${JSON.stringify(u)})'>✏️ Editar</button>
+          ${u.is_active
+            ? `<button class="btn btn-red" onclick="doDisableUser('${u.id}')">🚫 Desativar</button>`
+            : `<button class="btn btn-green" onclick="doEnableUser('${u.id}')">✅ Ativar</button>`}
+        </div>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+function filterUsers(query) {
+  const q = query.toLowerCase();
+  const filtered = allUsers.filter(u =>
+    u.email.toLowerCase().includes(q) || u.plan.includes(q)
+  );
+  renderUsers(filtered);
+}
+
+// ── Render sites ──────────────────────────────────────────────────────────
+function renderSites(sites) {
+  const tbody = document.getElementById("sites-table-body");
+  if (sites.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--txt2)">Nenhum site</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = sites.map(s => {
+    const sb = s.status === "published" ? "badge-green" : s.status === "disabled" ? "badge-red" : "badge-yellow";
+    return `<tr>
+      <td style="font-weight:600">${s.business_name}</td>
+      <td style="color:var(--txt2)">${s.niche}</td>
+      <td><span class="badge ${sb}">${s.status}</span></td>
+      <td class="td-url">${s.site_url ? `<a href="${s.site_url}" target="_blank">↗ Ver</a>` : "—"}</td>
+      <td>${s.publish_count ?? 0}</td>
+      <td style="font-size:12px;color:var(--txt2)">${s.last_published_at ? new Date(s.last_published_at).toLocaleDateString("pt-BR") : "—"}</td>
+      <td>
+        <div class="actions-cell">
+          ${s.status !== "disabled"
+            ? `<button class="btn btn-red" onclick="doDisableSite('${s.id}')">🚫 Desativar</button>`
+            : `<button class="btn btn-green" onclick="doEnableSite('${s.id}')">✅ Ativar</button>`}
+        </div>
+      </td>
+    </tr>`;
+  }).join("");
+}
+
+// ── User actions ──────────────────────────────────────────────────────────
+function openEditUser(user) {
+  document.getElementById("edit-user-id").value       = user.id;
+  document.getElementById("edit-user-email").textContent = user.email;
+  document.getElementById("edit-plan").value          = user.plan || "basic";
+  document.getElementById("edit-credits").value       = user.credits_remaining ?? "";
+  openModal("edit-user-modal");
+}
+
+async function doSaveUser() {
+  const id      = document.getElementById("edit-user-id").value;
+  const plan    = document.getElementById("edit-plan").value;
+  const credits = document.getElementById("edit-credits").value;
+
+  try {
+    await api("PUT", `/admin/users/${id}/plan`, { plan });
+    if (credits !== "") {
+      await api("PUT", `/admin/users/${id}/credits`, { amount: parseInt(credits) });
+    }
+    closeModal("edit-user-modal");
+    toast("✅ Usuário atualizado!", "success");
+    await loadUsers();
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+async function doDisableUser(id) {
+  if (!confirm("Desativar esta conta e todos os seus sites?")) return;
+  try {
+    await api("POST", `/admin/users/${id}/disable`);
+    toast("Conta desativada", "success");
+    await loadUsers();
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+async function doEnableUser(id) {
+  try {
+    await api("POST", `/admin/users/${id}/enable`);
+    toast("Conta ativada ✅", "success");
+    await loadUsers();
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+// ── Site actions ──────────────────────────────────────────────────────────
+async function doDisableSite(id) {
+  if (!confirm("Desativar este site?")) return;
+  try {
+    await api("POST", `/admin/sites/${id}/disable`);
+    toast("Site desativado", "success");
+    await loadSites();
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+async function doEnableSite(id) {
+  try {
+    await api("POST", `/admin/sites/${id}/enable`);
+    toast("Site ativado ✅", "success");
+    await loadSites();
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+async function doResetCredits() {
+  if (!confirm("Resetar créditos e publicações de TODOS os usuários conforme seus planos?")) return;
+  try {
+    const result = await api("POST", "/admin/reset-credits");
+    toast(`✅ ${result.reset} usuários atualizados!`, "success");
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function showPanel(name, btn) {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".nav-tab").forEach(t => t.classList.remove("active"));
+  document.getElementById(`panel-${name}`).classList.add("active");
+  btn.classList.add("active");
+}
+
+// ── API helper ────────────────────────────────────────────────────────────
+async function api(method, path, body = null) {
+  const session = (await sb.auth.getSession()).data.session;
+  const res = await fetch(API_BASE + path, {
+    method,
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${session?.access_token || ""}` },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = new Error(data.error || `HTTP ${res.status}`); e.code = data.code; throw e; }
+  return data;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+let toastId = 0;
+function toast(msg, type = "success", dur = 3500) {
+  const id = ++toastId;
+  const el = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.innerHTML = `<span>${type === "success" ? "✅" : "❌"}</span><span>${msg}</span>`;
+  document.getElementById("toast-container").appendChild(el);
+  if (dur > 0) setTimeout(() => el.remove(), dur);
+}
+
+function openModal(id) { document.getElementById(id).classList.add("open"); }
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+document.querySelectorAll(".modal-overlay").forEach(o =>
+  o.addEventListener("click", e => { if (e.target === o) o.classList.remove("open"); })
+);
+
+// ── Init ──────────────────────────────────────────────────────────────────
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    try {
+      await api("GET", "/admin/users");
+      document.getElementById("auth-screen").style.display = "none";
+      document.getElementById("app-screen").style.display  = "block";
+      document.getElementById("admin-email").textContent   = session.user.email;
+      await Promise.all([loadUsers(), loadSites()]);
+    } catch { /* not admin, show auth */ }
+  }
+})();
+</script>
+</body>
+</html>

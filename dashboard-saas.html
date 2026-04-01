@@ -1,0 +1,1120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ForgeSites AI — Painel</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:     #0F172A;
+      --card:   #1E293B;
+      --card2:  #162032;
+      --border: #334155;
+      --txt:    #F1F5F9;
+      --txt2:   #94A3B8;
+      --p:      #6366F1;
+      --pl:     rgba(99,102,241,.15);
+      --green:  #10B981;
+      --yellow: #F59E0B;
+      --red:    #EF4444;
+      --blue:   #3B82F6;
+      --r:      10px;
+    }
+    body { font-family: system-ui,-apple-system,'Inter',sans-serif; background: var(--bg); color: var(--txt); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+    /* ── Auth Screen ── */
+    #auth-screen { display:flex; align-items:center; justify-content:center; min-height:100vh; padding:24px; }
+    .auth-box { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:40px; width:100%; max-width:400px; text-align:center; }
+    .auth-logo { font-size:28px; font-weight:900; color:var(--p); margin-bottom:8px; }
+    .auth-sub { color:var(--txt2); font-size:14px; margin-bottom:32px; }
+    .auth-box h2 { font-size:18px; font-weight:700; margin-bottom:20px; }
+
+    /* ── App Layout ── */
+    #app-screen { display:none; min-height:100vh; }
+    .topbar { background:var(--card); border-bottom:1px solid var(--border); padding:0 28px; height:60px; display:flex; align-items:center; justify-content:space-between; position:sticky; top:0; z-index:50; }
+    .brand { font-size:16px; font-weight:800; color:var(--p); }
+    .topbar-right { display:flex; align-items:center; gap:12px; }
+    .credits-badge { background:var(--pl); color:var(--p); border:1px solid rgba(99,102,241,.3); border-radius:100px; padding:5px 14px; font-size:13px; font-weight:700; }
+    .user-email { color:var(--txt2); font-size:13px; }
+    .main { display:grid; grid-template-columns:240px 1fr; min-height:calc(100vh - 60px); }
+    .sidebar { background:var(--card2); border-right:1px solid var(--border); padding:20px 12px; }
+    .sidebar-label { font-size:11px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--txt2); padding:0 12px; margin:16px 0 6px; }
+    .sidebar-item { display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:var(--r); font-size:14px; font-weight:500; color:var(--txt2); cursor:pointer; transition:all .15s; margin-bottom:2px; }
+    .sidebar-item:hover { background:var(--pl); color:var(--txt); }
+    .sidebar-item.active { background:var(--pl); color:var(--p); font-weight:700; }
+    .sidebar-icon { width:18px; text-align:center; }
+    .site-selector { padding:12px; margin-bottom:4px; }
+    select.site-select { width:100%; background:var(--card); border:1px solid var(--border); color:var(--txt); border-radius:var(--r); padding:8px 12px; font-size:13px; cursor:pointer; }
+    .content { padding:28px; overflow-y:auto; }
+
+    /* ── Panels ── */
+    .panel { display:none; }
+    .panel.active { display:block; }
+    .panel-title { font-size:20px; font-weight:800; margin-bottom:4px; }
+    .panel-sub { color:var(--txt2); font-size:14px; margin-bottom:24px; }
+
+    /* ── Cards ── */
+    .card { background:var(--card); border:1px solid var(--border); border-radius:var(--r); }
+    .card-body { padding:20px; }
+    .card + .card { margin-top:16px; }
+
+    /* ── Forms ── */
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+    .form-grid.cols-1 { grid-template-columns:1fr; }
+    .form-group { display:flex; flex-direction:column; gap:6px; }
+    .form-group.span-2 { grid-column:span 2; }
+    label { font-size:12px; font-weight:600; color:var(--txt2); text-transform:uppercase; letter-spacing:.06em; }
+    input[type=text], input[type=email], input[type=number], textarea, select {
+      background:var(--bg); border:1px solid var(--border); color:var(--txt);
+      border-radius:8px; padding:10px 12px; font-size:14px; font-family:inherit;
+      transition:border-color .15s; width:100%;
+    }
+    input:focus, textarea:focus, select:focus { outline:none; border-color:var(--p); }
+    textarea { resize:vertical; min-height:80px; line-height:1.5; }
+    .field-note { font-size:11px; color:var(--txt2); margin-top:2px; }
+
+    /* ── Buttons ── */
+    .btn { display:inline-flex; align-items:center; gap:8px; padding:10px 18px; border-radius:8px; font-size:14px; font-weight:700; border:none; cursor:pointer; transition:all .15s; font-family:inherit; white-space:nowrap; }
+    .btn-primary { background:var(--p); color:#fff; }
+    .btn-primary:hover { opacity:.88; }
+    .btn-primary:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-green { background:var(--green); color:#fff; }
+    .btn-green:hover { opacity:.88; }
+    .btn-green:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-ai { background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; }
+    .btn-ai:hover { opacity:.88; }
+    .btn-ai:disabled { opacity:.45; cursor:not-allowed; }
+    .btn-ghost { background:transparent; color:var(--txt2); border:1px solid var(--border); }
+    .btn-ghost:hover { color:var(--txt); border-color:var(--txt2); }
+    .btn-danger { background:var(--red); color:#fff; }
+    .btn-sm { padding:6px 12px; font-size:12px; }
+    .btn-row { display:flex; gap:10px; flex-wrap:wrap; margin-top:20px; align-items:center; }
+
+    /* ── Action bar (sticky bottom) ── */
+    .action-bar { position:sticky; bottom:0; background:var(--card2); border-top:1px solid var(--border); padding:14px 28px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+    .action-bar-left { display:flex; align-items:center; gap:10px; }
+    .action-bar-right { display:flex; align-items:center; gap:10px; }
+    .status-dot { width:8px; height:8px; border-radius:50%; display:inline-block; }
+    .status-dot.published { background:var(--green); }
+    .status-dot.draft { background:var(--yellow); }
+    .status-dot.disabled { background:var(--red); }
+    .status-text { font-size:13px; color:var(--txt2); }
+
+    /* ── Toast ── */
+    #toast-container { position:fixed; bottom:24px; right:24px; z-index:999; display:flex; flex-direction:column; gap:8px; }
+    .toast { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:12px 18px; font-size:14px; font-weight:500; display:flex; align-items:center; gap:10px; min-width:260px; max-width:380px; animation:slideIn .2s ease; box-shadow:0 8px 24px rgba(0,0,0,.4); }
+    .toast.success { border-color:var(--green); }
+    .toast.error   { border-color:var(--red); }
+    .toast.loading { border-color:var(--p); }
+    @keyframes slideIn { from { transform:translateY(12px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+
+    /* ── Products ── */
+    .product-list { display:flex; flex-direction:column; gap:12px; margin-top:16px; }
+    .product-item { background:var(--card); border:1px solid var(--border); border-radius:var(--r); padding:14px 16px; display:flex; align-items:center; gap:14px; }
+    .product-item img { width:48px; height:48px; border-radius:6px; object-fit:cover; flex-shrink:0; }
+    .product-placeholder-sm { width:48px; height:48px; border-radius:6px; background:var(--pl); color:var(--p); display:flex; align-items:center; justify-content:center; font-size:20px; flex-shrink:0; }
+    .product-info { flex:1; min-width:0; }
+    .product-name { font-size:14px; font-weight:700; }
+    .product-desc { font-size:13px; color:var(--txt2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .product-price { font-size:13px; color:var(--green); font-weight:700; }
+    .product-actions { display:flex; gap:6px; }
+
+    /* ── Images ── */
+    .image-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:12px; margin-top:16px; }
+    .image-thumb { position:relative; border-radius:var(--r); overflow:hidden; aspect-ratio:1; background:var(--card); border:1px solid var(--border); }
+    .image-thumb img { width:100%; height:100%; object-fit:cover; }
+    .image-thumb .img-label { position:absolute; bottom:0; left:0; right:0; background:rgba(0,0,0,.7); font-size:11px; padding:4px 8px; color:var(--txt2); text-align:center; }
+    .image-thumb .img-delete { position:absolute; top:6px; right:6px; background:var(--red); border:none; border-radius:50%; width:24px; height:24px; color:#fff; cursor:pointer; font-size:12px; display:flex; align-items:center; justify-content:center; }
+    .upload-zone { border:2px dashed var(--border); border-radius:var(--r); padding:32px; text-align:center; cursor:pointer; transition:border-color .15s; margin-top:16px; }
+    .upload-zone:hover { border-color:var(--p); }
+    .upload-zone input[type=file] { display:none; }
+    .upload-zone-text { color:var(--txt2); font-size:14px; margin-top:8px; }
+
+    /* ── Modal ── */
+    .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:100; align-items:center; justify-content:center; padding:20px; }
+    .modal-overlay.open { display:flex; }
+    .modal { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:28px; width:100%; max-width:480px; }
+    .modal h3 { font-size:18px; font-weight:700; margin-bottom:16px; }
+    .modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; }
+
+    /* ── Spinner ── */
+    .spinner { width:16px; height:16px; border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; flex-shrink:0; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    /* ── Misc ── */
+    .divider { border:none; border-top:1px solid var(--border); margin:20px 0; }
+    .badge { display:inline-flex; align-items:center; gap:4px; padding:2px 10px; border-radius:100px; font-size:12px; font-weight:700; }
+    .badge-green { background:rgba(16,185,129,.15); color:var(--green); }
+    .badge-yellow { background:rgba(245,158,11,.15); color:var(--yellow); }
+    .badge-red { background:rgba(239,68,68,.15); color:var(--red); }
+    .badge-purple { background:var(--pl); color:var(--p); }
+    .empty-state { text-align:center; padding:48px 24px; color:var(--txt2); }
+    .empty-state .empty-icon { font-size:40px; margin-bottom:12px; }
+    .section-head { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+    .section-head h3 { font-size:16px; font-weight:700; }
+
+    @media(max-width:768px) {
+      .main { grid-template-columns:1fr; }
+      .sidebar { display:none; }
+      .form-grid { grid-template-columns:1fr; }
+      .form-group.span-2 { grid-column:span 1; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ AUTH SCREEN ══════════════════════════════════════════════════════════ -->
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">⚡ ForgeSites AI</div>
+    <div class="auth-sub">Painel de Gerenciamento do Site</div>
+    <h2>Entrar na sua conta</h2>
+    <div class="form-grid cols-1" style="margin-bottom:12px">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="auth-email" placeholder="seu@email.com">
+      </div>
+      <div class="form-group">
+        <label>Senha</label>
+        <input type="password" id="auth-password" placeholder="••••••••">
+      </div>
+    </div>
+    <button class="btn btn-primary" style="width:100%" onclick="doLogin()">
+      Entrar
+    </button>
+    <div id="auth-error" style="color:var(--red);font-size:13px;margin-top:12px;display:none"></div>
+  </div>
+</div>
+
+<!-- ══ APP SCREEN ════════════════════════════════════════════════════════════ -->
+<div id="app-screen">
+
+  <!-- Topbar -->
+  <div class="topbar">
+    <div class="brand">⚡ ForgeSites AI</div>
+    <div class="topbar-right">
+      <div class="credits-badge" id="credits-badge">⭐ — créditos</div>
+      <div class="user-email" id="user-email-display"></div>
+      <button class="btn btn-ghost btn-sm" onclick="doLogout()">Sair</button>
+    </div>
+  </div>
+
+  <div class="main">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="sidebar-label">Meu Site</div>
+      <div class="site-selector">
+        <select class="site-select" id="site-select" onchange="onSiteChange()">
+          <option value="">Carregando...</option>
+        </select>
+      </div>
+      <button class="btn btn-primary btn-sm" style="width:100%;margin-bottom:16px" onclick="openNewSiteModal()">+ Novo Site</button>
+
+      <div class="sidebar-label">Editar</div>
+      <div class="sidebar-item active" data-panel="panel-content" onclick="showPanel(this)">
+        <span class="sidebar-icon">✏️</span> Conteúdo
+      </div>
+      <div class="sidebar-item" data-panel="panel-products" onclick="showPanel(this)">
+        <span class="sidebar-icon">📦</span> Produtos
+      </div>
+      <div class="sidebar-item" data-panel="panel-images" onclick="showPanel(this)">
+        <span class="sidebar-icon">🖼️</span> Imagens
+      </div>
+
+      <div class="sidebar-label">Site</div>
+      <div class="sidebar-item" data-panel="panel-overview" onclick="showPanel(this)">
+        <span class="sidebar-icon">📊</span> Visão Geral
+      </div>
+    </div>
+
+    <!-- Content Area -->
+    <div style="display:flex;flex-direction:column;min-height:0">
+      <div class="content" style="flex:1">
+
+        <!-- ── PANEL: CONTENT ──────────────────────────────────────────────── -->
+        <div class="panel active" id="panel-content">
+          <div class="panel-title">✏️ Editar Conteúdo</div>
+          <div class="panel-sub">Edite os textos do seu site. Clique em "Salvar" para guardar sem publicar.</div>
+
+          <!-- Business Info -->
+          <div class="card">
+            <div class="card-body">
+              <div class="section-head"><h3>Informações do Negócio</h3></div>
+              <div class="form-grid">
+                <div class="form-group">
+                  <label>Nome do Negócio</label>
+                  <input type="text" id="f-business-name" placeholder="Ex: Clínica Odonto Silva">
+                </div>
+                <div class="form-group">
+                  <label>Nicho / Segmento</label>
+                  <select id="f-niche">
+                    <option>Clínica Odontológica</option>
+                    <option>Clínica Médica</option>
+                    <option>Clínica de Fisioterapia</option>
+                    <option>Consultório de Nutrição</option>
+                    <option>Clínica Veterinária</option>
+                    <option>Farmácia</option>
+                    <option>Salão de Beleza</option>
+                    <option>Barbearia</option>
+                    <option>Clínica de Estética</option>
+                    <option>Restaurante</option>
+                    <option>Pizzaria</option>
+                    <option>Padaria</option>
+                    <option>Hamburgueria</option>
+                    <option>Escritório de Advocacia</option>
+                    <option>Escritório de Contabilidade</option>
+                    <option>Imobiliária</option>
+                    <option>Academia / Studio Fitness</option>
+                    <option>Escola / Curso</option>
+                    <option>Oficina Mecânica</option>
+                    <option>Negócio Local</option>
+                  </select>
+                </div>
+                <div class="form-group">
+                  <label>WhatsApp / Telefone</label>
+                  <input type="text" id="f-phone" placeholder="(11) 99999-9999">
+                </div>
+                <div class="form-group">
+                  <label>Cidade</label>
+                  <input type="text" id="f-city" placeholder="São Paulo">
+                </div>
+                <div class="form-group">
+                  <label>Bairro</label>
+                  <input type="text" id="f-neighborhood" placeholder="Moema">
+                </div>
+                <div class="form-group">
+                  <label>Email de Contato</label>
+                  <input type="email" id="f-contact-email" placeholder="contato@empresa.com">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Hero Content -->
+          <div class="card">
+            <div class="card-body">
+              <div class="section-head">
+                <h3>Seção Principal (Hero)</h3>
+                <button class="btn btn-ai btn-sm" onclick="generateField('headline')">✨ Gerar com IA</button>
+              </div>
+              <div class="form-grid cols-1">
+                <div class="form-group">
+                  <label>Título Principal</label>
+                  <input type="text" id="f-headline" placeholder="Ex: A Melhor Clínica Odontológica de Moema">
+                  <div class="field-note">Máximo 12 palavras. Aparece no topo da página.</div>
+                </div>
+                <div class="form-group">
+                  <label>Subtítulo (Hero Copy)</label>
+                  <textarea id="f-hero-copy" rows="2" placeholder="Atendimento especializado em Moema. Agende pelo WhatsApp e seja atendido hoje."></textarea>
+                  <div class="field-note">1-2 frases persuasivas. Aparece abaixo do título.</div>
+                  <button class="btn btn-ai btn-sm" style="margin-top:8px;align-self:flex-start" onclick="generateField('hero_copy')">✨ Gerar com IA</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Diferenciais -->
+          <div class="card">
+            <div class="card-body">
+              <div class="section-head">
+                <h3>Diferenciais (Por que nos escolher)</h3>
+                <button class="btn btn-ai btn-sm" onclick="generateField('diferenciais')">✨ Gerar com IA</button>
+              </div>
+              <div class="form-grid cols-1" id="diferenciais-list">
+                <div class="form-group">
+                  <label>Diferencial 1</label>
+                  <input type="text" id="d-0" placeholder="Atendimento Rápido: Confirmação de horário em até 2 horas">
+                </div>
+                <div class="form-group">
+                  <label>Diferencial 2</label>
+                  <input type="text" id="d-1" placeholder="Equipe Especializada: Profissionais com mais de 10 anos de experiência">
+                </div>
+                <div class="form-group">
+                  <label>Diferencial 3</label>
+                  <input type="text" id="d-2" placeholder="Preço Justo: Parcelamos em até 12x sem juros">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Depoimentos -->
+          <div class="card">
+            <div class="card-body">
+              <div class="section-head">
+                <h3>Depoimentos de Clientes</h3>
+                <button class="btn btn-ai btn-sm" onclick="generateField('depoimentos')">✨ Gerar com IA</button>
+              </div>
+              <div id="depoimentos-list" style="display:flex;flex-direction:column;gap:12px">
+                <!-- rendered dynamically -->
+              </div>
+              <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="addDepoimentoRow()">+ Adicionar Depoimento</button>
+            </div>
+          </div>
+
+          <!-- About -->
+          <div class="card">
+            <div class="card-body">
+              <div class="section-head">
+                <h3>Sobre Nós</h3>
+                <button class="btn btn-ai btn-sm" onclick="generateField('about_text')">✨ Gerar com IA</button>
+              </div>
+              <div class="form-group">
+                <textarea id="f-about" rows="4" placeholder="Conte um pouco sobre sua história, missão e o que torna seu negócio especial..."></textarea>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- /panel-content -->
+
+        <!-- ── PANEL: PRODUCTS ─────────────────────────────────────────────── -->
+        <div class="panel" id="panel-products">
+          <div class="panel-title">📦 Produtos & Serviços</div>
+          <div class="panel-sub">Gerencie os produtos e serviços exibidos no seu site.</div>
+
+          <div class="section-head">
+            <span></span>
+            <button class="btn btn-primary" onclick="openProductModal()">+ Adicionar</button>
+          </div>
+
+          <div class="product-list" id="product-list">
+            <div class="empty-state">
+              <div class="empty-icon">📦</div>
+              <p>Nenhum produto ainda.<br>Clique em "Adicionar" para começar.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── PANEL: IMAGES ───────────────────────────────────────────────── -->
+        <div class="panel" id="panel-images">
+          <div class="panel-title">🖼️ Imagens</div>
+          <div class="panel-sub">Faça upload do logo, banner e fotos do seu negócio.</div>
+
+          <div class="card">
+            <div class="card-body">
+              <div class="section-head"><h3>Tipo de Imagem</h3></div>
+              <div class="form-group" style="max-width:240px;margin-bottom:12px">
+                <label>Selecionar tipo</label>
+                <select id="img-type-select">
+                  <option value="logo">Logo</option>
+                  <option value="banner">Banner (Hero)</option>
+                  <option value="gallery">Galeria</option>
+                </select>
+              </div>
+              <label class="upload-zone" id="upload-zone">
+                <input type="file" id="file-input" accept="image/*" onchange="handleUpload(event)">
+                <div style="font-size:32px">📁</div>
+                <div class="upload-zone-text">Clique para selecionar ou arraste a imagem aqui<br><small>JPG, PNG, WebP — máx. 5MB</small></div>
+              </label>
+              <div id="upload-progress" style="display:none;margin-top:12px">
+                <div style="background:var(--bg);border-radius:100px;height:6px;overflow:hidden">
+                  <div id="upload-bar" style="background:var(--p);height:100%;width:0;transition:width .3s"></div>
+                </div>
+                <div style="font-size:12px;color:var(--txt2);margin-top:6px" id="upload-status">Enviando...</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="image-grid" id="image-grid">
+            <!-- rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- ── PANEL: OVERVIEW ─────────────────────────────────────────────── -->
+        <div class="panel" id="panel-overview">
+          <div class="panel-title">📊 Visão Geral do Site</div>
+          <div class="panel-sub">Status atual e histórico de publicações.</div>
+          <div id="overview-content" style="display:flex;flex-direction:column;gap:16px">
+            <!-- rendered dynamically -->
+          </div>
+        </div>
+
+      </div><!-- /content -->
+
+      <!-- ── ACTION BAR ────────────────────────────────────────────────────── -->
+      <div class="action-bar">
+        <div class="action-bar-left">
+          <span class="status-dot draft" id="status-dot"></span>
+          <span class="status-text" id="status-text">Rascunho</span>
+          <span id="site-url-link"></span>
+        </div>
+        <div class="action-bar-right">
+          <button class="btn btn-ghost" onclick="doSave()" id="btn-save">
+            💾 Salvar
+          </button>
+          <button class="btn btn-green" onclick="doPublish()" id="btn-publish">
+            🚀 Publicar
+          </button>
+        </div>
+      </div>
+
+    </div><!-- /flex col -->
+  </div><!-- /main -->
+</div><!-- /app-screen -->
+
+<!-- ══ NEW SITE MODAL ════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="new-site-modal">
+  <div class="modal">
+    <h3>✨ Criar Novo Site</h3>
+    <div class="form-grid cols-1" style="gap:12px">
+      <div class="form-group">
+        <label>Nome do Negócio</label>
+        <input type="text" id="ns-name" placeholder="Ex: Barbearia do João">
+      </div>
+      <div class="form-group">
+        <label>Nicho</label>
+        <input type="text" id="ns-niche" placeholder="Ex: Barbearia">
+      </div>
+      <div class="form-group">
+        <label>Cidade</label>
+        <input type="text" id="ns-city" placeholder="Ex: São Paulo">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('new-site-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="doCreateSite()">Criar Site</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PRODUCT MODAL ════════════════════════════════════════════════════════ -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <h3 id="product-modal-title">📦 Adicionar Produto</h3>
+    <div class="form-grid cols-1" style="gap:12px">
+      <div class="form-group">
+        <label>Nome do Produto / Serviço</label>
+        <input type="text" id="pm-name" placeholder="Ex: Limpeza de Pele Profunda">
+      </div>
+      <div class="form-group">
+        <label>Descrição</label>
+        <textarea id="pm-desc" rows="2" placeholder="Breve descrição do produto ou serviço..."></textarea>
+        <button class="btn btn-ai btn-sm" style="margin-top:6px;align-self:flex-start" onclick="generateProductDesc()">✨ Gerar com IA</button>
+      </div>
+      <div class="form-group">
+        <label>Preço (R$) — deixe vazio para "sob consulta"</label>
+        <input type="number" id="pm-price" placeholder="0.00" min="0" step="0.01">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('product-modal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="doSaveProduct()" id="btn-save-product">Salvar Produto</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TOAST CONTAINER ══════════════════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════════════════════
+// CONFIG — update these values
+// ════════════════════════════════════════════════════════════════════════════
+const SUPABASE_URL  = "YOUR_SUPABASE_URL";
+const SUPABASE_ANON = "YOUR_SUPABASE_ANON_KEY";
+const API_BASE      = "http://localhost:3001";   // your server.js URL
+
+// ════════════════════════════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════════════════════════════
+const sb   = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+let currentSite  = null;
+let currentUser  = null;
+let sites        = [];
+let products     = [];
+let images       = [];
+let editingProductId = null;
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+async function doLogin() {
+  const email = document.getElementById("auth-email").value.trim();
+  const pass  = document.getElementById("auth-password").value;
+  const errEl = document.getElementById("auth-error");
+  errEl.style.display = "none";
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+  if (error) { errEl.textContent = error.message; errEl.style.display = "block"; return; }
+  await bootApp(data.session);
+}
+
+async function doLogout() {
+  await sb.auth.signOut();
+  document.getElementById("app-screen").style.display = "none";
+  document.getElementById("auth-screen").style.display = "flex";
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+async function bootApp(session) {
+  if (!session) return;
+  currentUser = session.user;
+  document.getElementById("auth-screen").style.display = "none";
+  document.getElementById("app-screen").style.display = "block";
+  document.getElementById("user-email-display").textContent = currentUser.email;
+
+  await Promise.all([loadProfile(), loadSites()]);
+}
+
+async function loadProfile() {
+  try {
+    const data = await api("GET", "/api/me");
+    document.getElementById("credits-badge").textContent = `⭐ ${data.credits_remaining} créditos`;
+  } catch {}
+}
+
+async function loadSites() {
+  try {
+    sites = await api("GET", "/api/sites");
+    const sel = document.getElementById("site-select");
+    if (sites.length === 0) {
+      sel.innerHTML = `<option value="">Nenhum site — crie o primeiro!</option>`;
+      return;
+    }
+    sel.innerHTML = sites.map(s =>
+      `<option value="${s.id}">${s.business_name} (${s.status})</option>`
+    ).join("");
+    await selectSite(sites[0].id);
+  } catch (e) {
+    toast("Erro ao carregar sites: " + e.message, "error");
+  }
+}
+
+async function onSiteChange() {
+  const id = document.getElementById("site-select").value;
+  if (id) await selectSite(id);
+}
+
+async function selectSite(siteId) {
+  try {
+    const site = await api("GET", `/api/sites/${siteId}`);
+    currentSite = site;
+    products    = site.products || [];
+    images      = site.images   || [];
+    fillForm(site);
+    renderProducts();
+    renderImages();
+    renderOverview();
+    updateStatusBar(site);
+  } catch (e) {
+    toast("Erro ao carregar site: " + e.message, "error");
+  }
+}
+
+// ── Form fill ─────────────────────────────────────────────────────────────
+function fillForm(site) {
+  const c = site.site_content || {};
+  setValue("f-business-name",  site.business_name || "");
+  setSelectValue("f-niche",    site.niche || "Negócio Local");
+  setValue("f-phone",          site.phone || "");
+  setValue("f-city",           site.city  || "");
+  setValue("f-neighborhood",   site.neighborhood || "");
+  setValue("f-contact-email",  c.contact_email || "");
+  setValue("f-headline",       c.headline || "");
+  setValue("f-hero-copy",      c.hero_copy || "");
+  setValue("f-about",          c.about_text || "");
+
+  const difs = c.diferenciais || [];
+  setValue("d-0", difs[0] || "");
+  setValue("d-1", difs[1] || "");
+  setValue("d-2", difs[2] || "");
+
+  renderDepoimentos(c.depoimentos || []);
+}
+
+function getFormData() {
+  const diferenciais = [
+    document.getElementById("d-0").value.trim(),
+    document.getElementById("d-1").value.trim(),
+    document.getElementById("d-2").value.trim(),
+  ].filter(Boolean);
+
+  const depoimentoEls = document.querySelectorAll(".dep-row");
+  const depoimentos   = Array.from(depoimentoEls).map(row => ({
+    nome:  row.querySelector(".dep-nome").value.trim(),
+    texto: row.querySelector(".dep-texto").value.trim(),
+  })).filter(d => d.nome && d.texto);
+
+  return {
+    info: {
+      business_name: document.getElementById("f-business-name").value.trim(),
+      niche:         document.getElementById("f-niche").value,
+      phone:         document.getElementById("f-phone").value.trim(),
+      city:          document.getElementById("f-city").value.trim(),
+      neighborhood:  document.getElementById("f-neighborhood").value.trim(),
+    },
+    content: {
+      headline:      document.getElementById("f-headline").value.trim(),
+      hero_copy:     document.getElementById("f-hero-copy").value.trim(),
+      about_text:    document.getElementById("f-about").value.trim(),
+      contact_email: document.getElementById("f-contact-email").value.trim(),
+      diferenciais,
+      depoimentos,
+    },
+  };
+}
+
+// ── Save ──────────────────────────────────────────────────────────────────
+async function doSave() {
+  if (!currentSite) return toast("Selecione um site primeiro", "error");
+  const btn = document.getElementById("btn-save");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Salvando...`;
+
+  try {
+    const { info, content } = getFormData();
+    await Promise.all([
+      api("PUT", `/api/sites/${currentSite.id}/info`, info),
+      api("PUT", `/api/sites/${currentSite.id}/content`, content),
+    ]);
+    toast("✅ Conteúdo salvo com sucesso!", "success");
+    // Refresh local state
+    Object.assign(currentSite, { ...info });
+    if (!currentSite.site_content) currentSite.site_content = {};
+    Object.assign(currentSite.site_content, content);
+  } catch (e) {
+    toast("Erro ao salvar: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "💾 Salvar";
+  }
+}
+
+// ── Publish ───────────────────────────────────────────────────────────────
+async function doPublish() {
+  if (!currentSite) return toast("Selecione um site primeiro", "error");
+  if (!confirm("Publicar gerará um deploy no Vercel. Continuar?")) return;
+
+  const btn = document.getElementById("btn-publish");
+  btn.disabled = true;
+  btn.innerHTML = `<span class="spinner"></span> Publicando...`;
+  const toastId = toast("🚀 Iniciando publicação...", "loading", 0);
+
+  try {
+    // Auto-save first
+    const { info, content } = getFormData();
+    await Promise.all([
+      api("PUT", `/api/sites/${currentSite.id}/info`, info),
+      api("PUT", `/api/sites/${currentSite.id}/content`, content),
+    ]);
+
+    const result = await api("POST", `/api/sites/${currentSite.id}/publish`);
+    removeToast(toastId);
+    toast(`🎉 Site publicado! <a href="${result.url}" target="_blank" style="color:var(--p)">Abrir →</a>`, "success", 8000);
+
+    currentSite.status  = "published";
+    currentSite.site_url = result.url;
+    updateStatusBar(currentSite);
+    renderOverview();
+    await loadProfile(); // refresh credits display
+  } catch (e) {
+    removeToast(toastId);
+    const msg =
+      e.code === "PUBLISH_LIMIT" ? "⚠️ Limite de publicações atingido. Faça upgrade!" :
+      e.code === "SITE_DISABLED" ? "❌ Site desativado pelo admin." :
+      "Erro ao publicar: " + e.message;
+    toast(msg, "error", 6000);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = "🚀 Publicar";
+  }
+}
+
+// ── AI Generation ─────────────────────────────────────────────────────────
+async function generateField(type) {
+  if (!currentSite) return toast("Selecione um site primeiro", "error");
+
+  const context = {
+    businessName: document.getElementById("f-business-name").value || currentSite.business_name,
+    niche:        document.getElementById("f-niche").value || currentSite.niche,
+    city:         document.getElementById("f-city").value || currentSite.city,
+    neighborhood: document.getElementById("f-neighborhood").value || currentSite.neighborhood,
+    phone:        document.getElementById("f-phone").value || currentSite.phone,
+  };
+
+  const toastId = toast("✨ Gerando com IA...", "loading", 0);
+
+  try {
+    const res = await api("POST", "/api/ai/generate", { type, context });
+    removeToast(toastId);
+
+    if (type === "headline"  && res.data.headline)   setValue("f-headline",  res.data.headline);
+    if (type === "hero_copy" && res.data.hero_copy)  setValue("f-hero-copy", res.data.hero_copy);
+    if (type === "about_text"&& res.data.about_text) setValue("f-about",     res.data.about_text);
+    if (type === "diferenciais" && res.data.diferenciais) {
+      const d = res.data.diferenciais;
+      setValue("d-0", d[0] || ""); setValue("d-1", d[1] || ""); setValue("d-2", d[2] || "");
+    }
+    if (type === "depoimentos" && res.data.depoimentos) {
+      renderDepoimentos(res.data.depoimentos);
+    }
+
+    document.getElementById("credits-badge").textContent = `⭐ ${res.credits_remaining} créditos`;
+    toast("✅ Gerado! Revise e clique em Salvar.", "success");
+  } catch (e) {
+    removeToast(toastId);
+    const msg = e.code === "NO_CREDITS"
+      ? "⚠️ Sem créditos de IA. Faça upgrade do seu plano!"
+      : "Erro na geração: " + e.message;
+    toast(msg, "error", 6000);
+  }
+}
+
+async function generateProductDesc() {
+  const name = document.getElementById("pm-name").value.trim();
+  if (!name || !currentSite) return;
+
+  const toastId = toast("✨ Gerando descrição...", "loading", 0);
+  try {
+    const res = await api("POST", "/api/ai/generate", {
+      type: "product_description",
+      context: { productName: name, businessName: currentSite.business_name, niche: currentSite.niche },
+    });
+    removeToast(toastId);
+    setValue("pm-desc", res.data.description || "");
+    document.getElementById("credits-badge").textContent = `⭐ ${res.credits_remaining} créditos`;
+    toast("✅ Descrição gerada!", "success");
+  } catch (e) {
+    removeToast(toastId);
+    toast(e.code === "NO_CREDITS" ? "⚠️ Sem créditos!" : e.message, "error");
+  }
+}
+
+// ── Products ──────────────────────────────────────────────────────────────
+function openProductModal(product = null) {
+  editingProductId = product?.id || null;
+  document.getElementById("product-modal-title").textContent =
+    product ? "✏️ Editar Produto" : "📦 Adicionar Produto";
+  setValue("pm-name",  product?.name        || "");
+  setValue("pm-desc",  product?.description || "");
+  setValue("pm-price", product?.price       || "");
+  openModal("product-modal");
+}
+
+async function doSaveProduct() {
+  const name  = document.getElementById("pm-name").value.trim();
+  const desc  = document.getElementById("pm-desc").value.trim();
+  const price = document.getElementById("pm-price").value;
+  if (!name) return toast("Nome do produto é obrigatório", "error");
+
+  const btn = document.getElementById("btn-save-product");
+  btn.disabled = true;
+
+  try {
+    if (editingProductId) {
+      await api("PUT", `/api/products/${editingProductId}`, {
+        name, description: desc,
+        price: price ? parseFloat(price) : null,
+      });
+    } else {
+      const p = await api("POST", "/api/products", {
+        siteId: currentSite.id, name, description: desc,
+        price: price ? parseFloat(price) : null,
+      });
+      products.push(p);
+    }
+    // Refresh from server
+    const site = await api("GET", `/api/sites/${currentSite.id}`);
+    products = site.products || [];
+    renderProducts();
+    closeModal("product-modal");
+    toast("✅ Produto salvo!", "success");
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function doDeleteProduct(id) {
+  if (!confirm("Excluir este produto?")) return;
+  try {
+    await api("DELETE", `/api/products/${id}`);
+    products = products.filter(p => p.id !== id);
+    renderProducts();
+    toast("Produto excluído", "success");
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+function renderProducts() {
+  const el = document.getElementById("product-list");
+  if (products.length === 0) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📦</div><p>Nenhum produto ainda.<br>Clique em "Adicionar" para começar.</p></div>`;
+    return;
+  }
+  el.innerHTML = products.map(p => `
+    <div class="product-item">
+      ${p.image_url
+        ? `<img src="${p.image_url}" alt="${p.name}">`
+        : `<div class="product-placeholder-sm">📦</div>`}
+      <div class="product-info">
+        <div class="product-name">${p.name}</div>
+        <div class="product-desc">${p.description || "—"}</div>
+        ${p.price ? `<div class="product-price">R$ ${Number(p.price).toFixed(2).replace(".",",")}</div>` : ""}
+      </div>
+      <div class="product-actions">
+        <button class="btn btn-ghost btn-sm" onclick='openProductModal(${JSON.stringify(p)})'>✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="doDeleteProduct('${p.id}')">🗑️</button>
+      </div>
+    </div>`).join("");
+}
+
+// ── Images ────────────────────────────────────────────────────────────────
+async function handleUpload(event) {
+  if (!currentSite) return toast("Selecione um site primeiro", "error");
+  const file = event.target.files[0];
+  if (!file) return;
+  if (file.size > 5 * 1024 * 1024) return toast("Arquivo muito grande (máx. 5MB)", "error");
+
+  const type = document.getElementById("img-type-select").value;
+  const session = (await sb.auth.getSession()).data.session;
+  const path    = `${session.user.id}/${currentSite.id}/${type}-${Date.now()}-${file.name}`;
+
+  document.getElementById("upload-progress").style.display = "block";
+  document.getElementById("upload-bar").style.width = "30%";
+  document.getElementById("upload-status").textContent = "Enviando...";
+
+  try {
+    const { data: uploadData, error: upErr } = await sb.storage
+      .from("site-images")
+      .upload(path, file, { cacheControl: "3600", upsert: false });
+
+    if (upErr) throw upErr;
+
+    document.getElementById("upload-bar").style.width = "70%";
+
+    const { data: urlData } = sb.storage.from("site-images").getPublicUrl(path);
+    const publicUrl = urlData.publicUrl;
+
+    // Save to images table via direct Supabase (or via API)
+    const { error: dbErr } = await sb.from("images").insert({
+      site_id:      currentSite.id,
+      user_id:      session.user.id,
+      storage_path: path,
+      public_url:   publicUrl,
+      file_name:    file.name,
+      file_size:    file.size,
+      mime_type:    file.type,
+      type,
+    });
+
+    if (dbErr) throw dbErr;
+
+    document.getElementById("upload-bar").style.width = "100%";
+    document.getElementById("upload-status").textContent = "Concluído!";
+
+    images.push({ id: crypto.randomUUID(), public_url: publicUrl, type, file_name: file.name });
+    renderImages();
+    toast("✅ Imagem enviada!", "success");
+  } catch (e) {
+    toast("Erro no upload: " + e.message, "error");
+  } finally {
+    setTimeout(() => {
+      document.getElementById("upload-progress").style.display = "none";
+      document.getElementById("upload-bar").style.width = "0";
+    }, 1500);
+    event.target.value = "";
+  }
+}
+
+async function deleteImage(id, path) {
+  if (!confirm("Excluir esta imagem?")) return;
+  try {
+    await sb.storage.from("site-images").remove([path]);
+    await sb.from("images").delete().eq("id", id);
+    images = images.filter(i => i.id !== id);
+    renderImages();
+    toast("Imagem excluída", "success");
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+function renderImages() {
+  const el = document.getElementById("image-grid");
+  if (images.length === 0) {
+    el.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-icon">🖼️</div><p>Nenhuma imagem enviada ainda.</p></div>`;
+    return;
+  }
+  el.innerHTML = images.map(img => `
+    <div class="image-thumb">
+      <img src="${img.public_url}" alt="${img.file_name || img.type}" loading="lazy">
+      <div class="img-label">${img.type}</div>
+      <button class="img-delete" onclick="deleteImage('${img.id}', '${img.storage_path || ""}')">✕</button>
+    </div>`).join("");
+}
+
+// ── Depoimentos ───────────────────────────────────────────────────────────
+function renderDepoimentos(list) {
+  const el = document.getElementById("depoimentos-list");
+  const rows = list.length > 0 ? list : [{ nome: "", texto: "" }];
+  el.innerHTML = rows.map((d, i) => depoRow(d, i)).join("");
+}
+
+function depoRow(d, i) {
+  return `<div class="dep-row card" style="padding:14px;display:flex;flex-direction:column;gap:8px">
+    <div style="display:flex;gap:8px;align-items:center">
+      <input class="dep-nome" type="text" placeholder="Nome do cliente" value="${escHtml(d.nome || "")}" style="flex:1">
+      <button class="btn btn-danger btn-sm" onclick="removeDepoRow(this)">✕</button>
+    </div>
+    <textarea class="dep-texto" rows="2" placeholder="Depoimento em primeira pessoa...">${escHtml(d.texto || "")}</textarea>
+  </div>`;
+}
+
+function addDepoimentoRow() {
+  const el = document.getElementById("depoimentos-list");
+  el.insertAdjacentHTML("beforeend", depoRow({ nome: "", texto: "" }, Date.now()));
+}
+
+function removeDepoRow(btn) {
+  btn.closest(".dep-row").remove();
+}
+
+// ── Overview ──────────────────────────────────────────────────────────────
+function renderOverview() {
+  if (!currentSite) return;
+  const s = currentSite;
+  const el = document.getElementById("overview-content");
+  const statusBadge = s.status === "published" ? "badge-green" :
+                      s.status === "disabled"  ? "badge-red"   : "badge-yellow";
+
+  el.innerHTML = `
+    <div class="card"><div class="card-body">
+      <table style="width:100%;border-collapse:collapse">
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 0;color:var(--txt2);width:140px">Status</td>
+          <td><span class="badge ${statusBadge}">${s.status}</span></td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 0;color:var(--txt2)">URL do Site</td>
+          <td>${s.site_url ? `<a href="${s.site_url}" target="_blank" style="color:var(--p)">${s.site_url}</a>` : "—"}</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 0;color:var(--txt2)">Publicações</td>
+          <td>${s.publish_count || 0}</td>
+        </tr>
+        <tr style="border-bottom:1px solid var(--border)">
+          <td style="padding:10px 0;color:var(--txt2)">Última Publicação</td>
+          <td>${s.last_published_at ? new Date(s.last_published_at).toLocaleString("pt-BR") : "—"}</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 0;color:var(--txt2)">Criado em</td>
+          <td>${new Date(s.created_at).toLocaleDateString("pt-BR")}</td>
+        </tr>
+      </table>
+    </div></div>
+    ${s.site_url ? `
+    <div class="card"><div class="card-body">
+      <h3 style="margin-bottom:12px">Visualizar Site</h3>
+      <a href="${s.site_url}" target="_blank" class="btn btn-primary">🌐 Abrir Site Publicado</a>
+    </div></div>` : ""}`;
+}
+
+function updateStatusBar(site) {
+  const dot  = document.getElementById("status-dot");
+  const text = document.getElementById("status-text");
+  const link = document.getElementById("site-url-link");
+
+  dot.className  = `status-dot ${site.status}`;
+  text.textContent = { published: "Publicado", draft: "Rascunho", disabled: "Desativado" }[site.status] || site.status;
+  link.innerHTML = site.site_url
+    ? `<a href="${site.site_url}" target="_blank" style="color:var(--p);font-size:13px;margin-left:6px">↗ Ver site</a>`
+    : "";
+}
+
+// ── Create Site ───────────────────────────────────────────────────────────
+function openNewSiteModal() { openModal("new-site-modal"); }
+
+async function doCreateSite() {
+  const name = document.getElementById("ns-name").value.trim();
+  if (!name) return toast("Nome é obrigatório", "error");
+
+  try {
+    const site = await api("POST", "/api/sites", {
+      businessName: name,
+      niche:        document.getElementById("ns-niche").value.trim() || "Negócio Local",
+      city:         document.getElementById("ns-city").value.trim(),
+    });
+    sites.unshift(site);
+    const sel = document.getElementById("site-select");
+    sel.insertAdjacentHTML("afterbegin", `<option value="${site.id}">${site.business_name} (draft)</option>`);
+    sel.value = site.id;
+    await selectSite(site.id);
+    closeModal("new-site-modal");
+    toast("✅ Site criado!", "success");
+  } catch (e) {
+    toast("Erro: " + e.message, "error");
+  }
+}
+
+// ── Panel navigation ──────────────────────────────────────────────────────
+function showPanel(el) {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".sidebar-item").forEach(s => s.classList.remove("active"));
+  document.getElementById(el.dataset.panel).classList.add("active");
+  el.classList.add("active");
+}
+
+// ── API helper ────────────────────────────────────────────────────────────
+async function api(method, path, body = null) {
+  const session = (await sb.auth.getSession()).data.session;
+  const headers = {
+    "Content-Type":  "application/json",
+    "Authorization": `Bearer ${session?.access_token || ""}`,
+  };
+  const res = await fetch(API_BASE + path, {
+    method,
+    headers,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = new Error(data.error || `HTTP ${res.status}`);
+    err.code = data.code;
+    throw err;
+  }
+  return data;
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+let toastId = 0;
+function toast(msg, type = "success", duration = 3500) {
+  const id   = ++toastId;
+  const cont = document.getElementById("toast-container");
+  const el   = document.createElement("div");
+  el.className = `toast ${type}`;
+  el.id = `toast-${id}`;
+  el.innerHTML = `<span>${type === "success" ? "✅" : type === "error" ? "❌" : "⏳"}</span> <span>${msg}</span>`;
+  cont.appendChild(el);
+  if (duration > 0) setTimeout(() => removeToast(id), duration);
+  return id;
+}
+function removeToast(id) {
+  document.getElementById(`toast-${id}`)?.remove();
+}
+
+// ── Modal helpers ─────────────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add("open"); }
+function closeModal(id) { document.getElementById(id).classList.remove("open"); }
+
+// ── Misc utils ────────────────────────────────────────────────────────────
+function setValue(id, val)       { const el = document.getElementById(id); if (el) el.value = val; }
+function setSelectValue(id, val) { const el = document.getElementById(id); if (el) el.value = val; }
+function escHtml(s)              { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+
+// ── Click outside to close modal ─────────────────────────────────────────
+document.querySelectorAll(".modal-overlay").forEach(o =>
+  o.addEventListener("click", e => { if (e.target === o) o.classList.remove("open"); })
+);
+
+// ── Init ──────────────────────────────────────────────────────────────────
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    await bootApp(session);
+  }
+})();
+</script>
+</body>
+</html>
