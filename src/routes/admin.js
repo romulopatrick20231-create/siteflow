@@ -11,6 +11,7 @@
  * POST  /admin/disable-user           — deactivate  (body: { userId })
  * POST  /admin/enable-user            — reactivate  (body: { userId })
  *
+ * GET   /admin/users/:id/credits       — get credit balance
  * PATCH /admin/users/:id/ban          — ban or unban  { banned, reason? }
  * PATCH /admin/users/:id/plan         — set plan      { plan }
  * PATCH /admin/users/:id/credits      — set credits   { amount }
@@ -35,6 +36,7 @@ import { asyncHandler, send } from "../utils/asyncHandler.js";
 import {
   listUsers,
   getUser,
+  getUserCredits,
   setUserPlan,
   setUserCredits,
   disableUser,
@@ -122,7 +124,15 @@ router.get("/users", asyncHandler(async (req, res) => {
 
     const users = await listUsers({ limit, offset, search, plan, active });
     logger.info("Admin listed users", { adminId: req.userId, count: users.length, search, plan });
-    return res.json(users.map(u => ({ ...u, is_active: u.is_active ?? true })));
+    return res.json(users.map(({ user_credits, ...u }) => {
+      const uc = Array.isArray(user_credits) ? user_credits[0] : user_credits;
+      return {
+        ...u,
+        is_active:          u.is_active ?? true,
+        credits_remaining:  uc?.credits_remaining  ?? 0,
+        credits_used_total: uc?.credits_used_total ?? 0,
+      };
+    }));
   } catch (error) {
     console.error("ADMIN ERROR:", error);
     return res.status(500).json({ error: "Internal server error", message: error.message });
@@ -305,6 +315,21 @@ router.post(
     await setUserCredits(targetId, amount);
     logger.info("Admin set user credits", { adminId: req.userId, targetUser: targetId, email: user.email, amount });
     send(res, { updated: true, userId: targetId, email: user.email, amount });
+  })
+);
+
+// ── GET /admin/users/:id/credits ──────────────────────────────────────────────
+// Returns current credit balance for a single user.
+router.get(
+  "/users/:id/credits",
+  asyncHandler(async (req, res) => {
+    const targetId = req.params.id;
+
+    const user = await getUser(targetId);
+    if (!user) throw new NotFoundError("User");
+
+    const credits = await getUserCredits(targetId);
+    send(res, { userId: targetId, email: user.email, ...credits });
   })
 );
 

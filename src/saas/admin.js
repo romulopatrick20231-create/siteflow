@@ -27,7 +27,7 @@ export async function listUsers({ limit = 100, offset = 0, search, plan, active 
   const db = getAdminClient();
   let query = db
     .from("users")
-    .select("id, email, plan, is_admin, is_active, publish_count_month, publish_limit, created_at")
+    .select("id, email, plan, is_admin, is_active, publish_count_month, publish_limit, created_at, user_credits(credits_remaining, credits_used_total)")
     .range(offset, offset + limit - 1)
     .order("created_at", { ascending: false });
 
@@ -53,6 +53,26 @@ export async function getUser(userId) {
 
   if (error) throw new Error(`getUser: ${error.message}`);
   return data;
+}
+
+/**
+ * Get credits balance for a single user.
+ * @param {string} userId
+ * @returns {Promise<{ credits_remaining: number, credits_used_total: number }>}
+ */
+export async function getUserCredits(userId) {
+  const db = getAdminClient();
+  const { data, error } = await db
+    .from("user_credits")
+    .select("credits_remaining, credits_used_total")
+    .eq("user_id", userId)
+    .single();
+
+  if (error && error.code !== "PGRST116") throw new Error(`getUserCredits: ${error.message}`);
+  return {
+    credits_remaining:  data?.credits_remaining  ?? 0,
+    credits_used_total: data?.credits_used_total ?? 0,
+  };
 }
 
 /**
