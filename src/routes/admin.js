@@ -270,9 +270,30 @@ router.patch(
 );
 
 // ── PATCH /admin/users/:id/credits ────────────────────────────────────────────
-// RESTful alternative to POST /admin/set-credits.
 // Body: { amount: number }
 router.patch(
+  "/users/:id/credits",
+  validate(creditsSchema),
+  asyncHandler(async (req, res) => {
+    const targetId = req.params.id;
+    const { amount } = req.body;
+
+    const user = await getUser(targetId);
+    if (!user) throw new NotFoundError("User");
+
+    await setUserCredits(targetId, amount);
+    logger.info("Admin set user credits", {
+      adminId:    req.userId,
+      targetUser: targetId,
+      email:      user.email,
+      amount,
+    });
+    send(res, { updated: true, userId: targetId, email: user.email, amount });
+  })
+);
+
+// ── POST /admin/users/:id/credits — alias for PATCH (frontend compat) ─────────
+router.post(
   "/users/:id/credits",
   validate(creditsSchema),
   asyncHandler(async (req, res) => {
