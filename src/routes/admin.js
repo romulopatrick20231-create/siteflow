@@ -66,7 +66,11 @@ const siteIdSchema      = Joi.object({ siteId: uuid() });
 // RESTful param schemas
 const banSchema     = Joi.object({ banned: Joi.boolean().required(), reason: Joi.string().max(500).trim().allow("", null) });
 const planSchema    = Joi.object({ plan: Joi.string().valid("basic", "pro", "admin").required() });
-const creditsSchema = Joi.object({ amount: Joi.number().integer().min(0).max(99999).required() });
+const creditsSchema = Joi.object({
+  amount:            Joi.number().integer().min(0).max(99999),
+  credits:           Joi.number().integer().min(0).max(99999),
+  credits_remaining: Joi.number().integer().min(0).max(99999),
+}).or("amount", "credits", "credits_remaining");
 const statusSchema  = Joi.object({ status: Joi.string().valid("draft", "ready", "published", "archived", "disabled").required() });
 
 // Batch generation schema
@@ -118,7 +122,7 @@ router.get("/users", asyncHandler(async (req, res) => {
 
     const users = await listUsers({ limit, offset, search, plan, active });
     logger.info("Admin listed users", { adminId: req.userId, count: users.length, search, plan });
-    return res.json(users);
+    return res.json(users.map(u => ({ ...u, is_active: u.is_active ?? true })));
   } catch (error) {
     console.error("ADMIN ERROR:", error);
     return res.status(500).json({ error: "Internal server error", message: error.message });
@@ -276,18 +280,13 @@ router.patch(
   validate(creditsSchema),
   asyncHandler(async (req, res) => {
     const targetId = req.params.id;
-    const { amount } = req.body;
+    const amount = req.body.amount ?? req.body.credits ?? req.body.credits_remaining;
 
     const user = await getUser(targetId);
     if (!user) throw new NotFoundError("User");
 
     await setUserCredits(targetId, amount);
-    logger.info("Admin set user credits", {
-      adminId:    req.userId,
-      targetUser: targetId,
-      email:      user.email,
-      amount,
-    });
+    logger.info("Admin set user credits", { adminId: req.userId, targetUser: targetId, email: user.email, amount });
     send(res, { updated: true, userId: targetId, email: user.email, amount });
   })
 );
@@ -298,18 +297,13 @@ router.post(
   validate(creditsSchema),
   asyncHandler(async (req, res) => {
     const targetId = req.params.id;
-    const { amount } = req.body;
+    const amount = req.body.amount ?? req.body.credits ?? req.body.credits_remaining;
 
     const user = await getUser(targetId);
     if (!user) throw new NotFoundError("User");
 
     await setUserCredits(targetId, amount);
-    logger.info("Admin set user credits", {
-      adminId:    req.userId,
-      targetUser: targetId,
-      email:      user.email,
-      amount,
-    });
+    logger.info("Admin set user credits", { adminId: req.userId, targetUser: targetId, email: user.email, amount });
     send(res, { updated: true, userId: targetId, email: user.email, amount });
   })
 );
