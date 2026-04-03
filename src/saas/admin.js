@@ -15,14 +15,27 @@ const PLAN_PUBLISH = { basic: 5,  pro: 50, admin: 9999 };
 
 /**
  * List all users with their credits and site counts.
+ *
+ * @param {object} opts
+ * @param {number}  opts.limit
+ * @param {number}  opts.offset
+ * @param {string}  [opts.search]  — partial match on email (case-insensitive)
+ * @param {string}  [opts.plan]    — filter by plan ("basic" | "pro" | "admin")
+ * @param {boolean} [opts.active]  — filter by is_active flag
  */
-export async function listUsers({ limit = 100, offset = 0 } = {}) {
+export async function listUsers({ limit = 100, offset = 0, search, plan, active } = {}) {
   const db = getAdminClient();
-  const { data, error } = await db
+  let query = db
     .from("user_overview")   // view defined in saas-schema.sql
-    .select("*")
-    .range(offset, offset + limit - 1);
+    .select("id, email, plan, is_active, publish_count_month, publish_limit, credits_remaining, credits_used_total, total_sites, published_sites, disabled_sites, created_at")
+    .range(offset, offset + limit - 1)
+    .order("created_at", { ascending: false });
 
+  if (search)            query = query.ilike("email", `%${search}%`);
+  if (plan)              query = query.eq("plan", plan);
+  if (active !== undefined) query = query.eq("is_active", active);
+
+  const { data, error } = await query;
   if (error) throw new Error(`listUsers: ${error.message}`);
   return data ?? [];
 }
@@ -34,7 +47,7 @@ export async function getUser(userId) {
   const db = getAdminClient();
   const { data, error } = await db
     .from("user_overview")
-    .select("*")
+    .select("id, email, plan, is_active, publish_count_month, publish_limit, credits_remaining, credits_used_total, total_sites, published_sites, disabled_sites, created_at")
     .eq("id", userId)
     .single();
 
@@ -99,18 +112,54 @@ export async function resetMonthlyCredits() {
 // ── Sites (admin can edit any site) ──────────────────────────────────────────
 
 /**
- * List all sites (admin view, all users).
+ * List all sites across all users (admin view).
+ * Includes the owner's email for display in the admin panel.
+ *
+ * @param {object} opts
+ * @param {number} opts.limit
+ * @param {number} opts.offset
+ * @param {string} [opts.status]  — filter by status
+ * @param {string} [opts.search]  — partial match on business_name (case-insensitive)
  */
-export async function listAllSites({ limit = 100, offset = 0 } = {}) {
+export async function listAllSites({ limit = 100, offset = 0, status, search } = {}) {
   const db = getAdminClient();
-  const { data, error } = await db
+  let query = db
     .from("sites")
-    .select("id, user_id, slug, business_name, niche, status, site_url, publish_count, last_published_at, created_at")
+    .select(`
+      id, user_id, slug, business_name, niche, status,
+      site_url, publish_count, last_published_at, created_at,
+      users ( email, plan, is_active )
+    `)
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
+  if (status) query = query.eq("status", status);
+  if (search) query = query.ilike("business_name", `%${search}%`);
+
+  const { data, error } = await query;
   if (error) throw new Error(`listAllSites: ${error.message}`);
   return data ?? [];
+}
+
+/**
+ * Force-set a site's status directly (admin override — no transition validation).
+ * Valid values: "draft" | "ready" | "published" | "archived" | "disabled"
+ *
+ * @param {string} siteId
+ * @param {string} status
+ */
+export async function setSiteStatus(siteId, status) {
+  const VALID = new Set(["draft", "ready", "published", "archived", "disabled"]);
+  if (!VALID.has(status)) throw new Error(`Invalid status: ${status}`);
+
+  const db = getAdminClient();
+  const { error } = await db
+    .from("sites")
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq("id", siteId);
+
+  if (error) throw new Error(`setSiteStatus: ${error.message}`);
+  return { siteId, status };
 }
 
 /**
