@@ -118,7 +118,7 @@ router.get("/users", asyncHandler(async (req, res) => {
 
     const users = await listUsers({ limit, offset, search, plan, active });
     logger.info("Admin listed users", { adminId: req.userId, count: users.length, search, plan });
-    return res.json({ success: true, data: users });
+    return res.json(users);
   } catch (error) {
     console.error("ADMIN ERROR:", error);
     return res.status(500).json({ error: "Internal server error", message: error.message });
@@ -180,7 +180,7 @@ router.get("/sites", asyncHandler(async (req, res) => {
 
     const sites = await listAllSites({ limit, offset, status, search });
     logger.info("Admin listed all sites", { adminId: req.userId, count: sites.length, status, search });
-    return res.json({ success: true, data: sites });
+    return res.json(sites);
   } catch (error) {
     console.error("ADMIN ERROR:", error);
     return res.status(500).json({ error: "Internal server error", message: error.message });
