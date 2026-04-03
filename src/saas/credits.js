@@ -40,6 +40,15 @@ export async function getCredits(userId) {
 export async function deductCredit(userId) {
   const db = getAdminClient();
 
+  // Admins have infinite credits — skip deduction entirely
+  const { data: profile } = await db
+    .from("users")
+    .select("is_admin")
+    .eq("id", userId)
+    .single();
+
+  if (profile?.is_admin) return 9999;
+
   // Read current balance
   const { data, error: readErr } = await db
     .from("user_credits")
