@@ -26,6 +26,111 @@ const SIGNED_URL_TTL  = 300;                // 5 min — enough for frontend to 
 const router = Router();
 router.use(requireAuth);
 
+// ── Helper: resolve user's primary site ──────────────────────────────────
+async function getPrimarySiteId(userId) {
+  const db = getAdminClient();
+  const { data } = await db
+    .from("sites")
+    .select("id")
+    .eq("user_id", userId)
+    .neq("status", "disabled")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .single();
+  return data?.id ?? null;
+}
+
+// ── GET /images — list images for user's primary site ─────────────────────
+// Must be declared BEFORE GET /:siteId to avoid param conflicts.
+router.get("/", asyncHandler(async (req, res) => {
+  const siteId = await getPrimarySiteId(req.userId);
+  if (!siteId) { send(res, []); return; }
+
+  const db = getAdminClient();
+  const { data, error } = await db
+    .from("images")
+    .select("id, public_url, type, file_name, created_at")
+    .eq("site_id", siteId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(`getImages: ${error.message}`);
+
+  // Map to frontend shape: public_url → url
+  send(res, (data ?? []).map(img => ({
+    id:       img.id,
+    url:      img.public_url,
+    type:     img.type,
+    fileName: img.file_name,
+  })));
+}));
+
+// ── POST /images — accept base64-encoded image and upload to Supabase ─────
+// Body: { file: "data:image/jpeg;base64,...", fileName, mimeType, imageType? }
+// The frontend converts the File to a data URL before sending JSON.
+router.post("/", asyncHandler(async (req, res) => {
+  const { file, fileName, mimeType, imageType = "gallery" } = req.body;
+
+  if (!file || !fileName || !mimeType) {
+    throw new ValidationError("Missing required fields: file, fileName, mimeType");
+  }
+  if (!ALLOWED_TYPES.has(mimeType)) {
+    throw new ValidationError("Invalid file type. Allowed: JPEG, PNG, WebP, GIF");
+  }
+
+  // Strip the data URL prefix (data:image/jpeg;base64,...)
+  const base64Data = file.replace(/^data:[^;]+;base64,/, "");
+  const buffer     = Buffer.from(base64Data, "base64");
+
+  if (buffer.length > MAX_FILE_SIZE) {
+    throw new ValidationError("File too large. Maximum 5 MB.");
+  }
+
+  const siteId = await getPrimarySiteId(req.userId);
+  if (!siteId) throw new NotFoundError("Site");
+
+  const db      = getAdminClient();
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 100);
+  const path     = `${req.userId}/${siteId}/${imageType}-${Date.now()}-${safeName}`;
+
+  // Upload buffer to Supabase Storage
+  const { error: uploadErr } = await db.storage
+    .from(BUCKET)
+    .upload(path, buffer, { contentType: mimeType, upsert: false });
+
+  if (uploadErr) throw new Error(`Storage upload failed: ${uploadErr.message}`);
+
+  const { data: { publicUrl } } = db.storage.from(BUCKET).getPublicUrl(path);
+
+  // Replace existing logo (one logo per site)
+  if (imageType === "logo") {
+    const { data: oldLogos } = await db
+      .from("images")
+      .select("id, storage_path")
+      .eq("site_id", siteId)
+      .eq("type", "logo");
+    for (const old of oldLogos ?? []) {
+      await db.storage.from(BUCKET).remove([old.storage_path]);
+      await db.from("images").delete().eq("id", old.id);
+    }
+  }
+
+  const { data: imageRecord, error: dbErr } = await db.from("images").insert({
+    site_id:      siteId,
+    user_id:      req.userId,
+    storage_path: path,
+    public_url:   publicUrl,
+    file_name:    fileName,
+    file_size:    buffer.length,
+    mime_type:    mimeType,
+    type:         imageType,
+  }).select().single();
+
+  if (dbErr) throw new Error(`Image record failed: ${dbErr.message}`);
+
+  logger.info("Image uploaded", { userId: req.userId, siteId, type: imageType, path });
+  send(res, { id: imageRecord.id, url: publicUrl, type: imageType, fileName }, 201);
+}));
+
 // ── POST /images/upload-url — generate signed upload URL ──────────────────
 router.post(
   "/upload-url",

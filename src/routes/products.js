@@ -22,6 +22,51 @@ import Joi from "joi";
 const router = Router();
 router.use(requireAuth);
 
+// ── Helper: resolve user's primary site ─────────────────────────────────
+async function getPrimarySiteId(userId) {
+  const db = getAdminClient();
+  const { data } = await db
+    .from("sites")
+    .select("id")
+    .eq("user_id", userId)
+    .neq("status", "disabled")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .single();
+  return data?.id ?? null;
+}
+
+// Map DB row → frontend shape (snake_case → camelCase)
+function mapProduct(p) {
+  return {
+    id:          p.id,
+    name:        p.name,
+    price:       p.price,
+    imageUrl:    p.image_url,
+    description: p.description,
+    is_active:   p.is_active,
+    sort_order:  p.sort_order,
+  };
+}
+
+// ── GET /products — list products for user's primary site ─────────────────
+// Must be declared BEFORE GET /:siteId so it matches first.
+router.get("/", asyncHandler(async (req, res) => {
+  const siteId = await getPrimarySiteId(req.userId);
+  if (!siteId) { send(res, []); return; }
+
+  const db = getAdminClient();
+  const { data, error } = await db
+    .from("products")
+    .select("*")
+    .eq("site_id", siteId)
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) throw new Error(`getProducts: ${error.message}`);
+  send(res, (data ?? []).map(mapProduct));
+}));
+
 // ── GET /products/:siteId ──────────────────────────────────────────────────
 router.get("/:siteId", asyncHandler(async (req, res) => {
   const db = getAdminClient();
@@ -43,17 +88,24 @@ router.get("/:siteId", asyncHandler(async (req, res) => {
     .order("created_at", { ascending: true });
 
   if (error) throw new Error(`getProducts: ${error.message}`);
-  send(res, data ?? []);
+  send(res, (data ?? []).map(mapProduct));
 }));
 
-// ── POST /products ─────────────────────────────────────────────────────────
+// ── POST /products — add product (siteId auto-resolved if not in body) ────
 router.post(
   "/",
   validate(schemas.createProduct),
   asyncHandler(async (req, res) => {
-    const { siteId, ...productData } = req.body;
+    let { siteId, ...productData } = req.body;
+
+    // Auto-resolve primary site if siteId not provided by client
+    if (!siteId) {
+      siteId = await getPrimarySiteId(req.userId);
+      if (!siteId) throw new NotFoundError("Site");
+    }
+
     const product = await addProduct(siteId, req.userId, productData);
-    send(res, product, 201);
+    send(res, mapProduct(product), 201);
   })
 );
 

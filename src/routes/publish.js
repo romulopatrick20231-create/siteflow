@@ -12,8 +12,10 @@ import { Router }        from "express";
 import { requireAuth }   from "../middleware/auth.js";
 import { publishLimiter } from "../middleware/rateLimiter.js";
 import { asyncHandler, send } from "../utils/asyncHandler.js";
-import { publishSite }   from "../saas/publishSite.js";
-import { getAdminClient } from "../saas/db.js";
+import { publishSite }          from "../saas/publishSite.js";
+import { markSitePublished }    from "../saas/cmsSaas.js";
+import { incrementPublishCount } from "../saas/credits.js";
+import { getAdminClient }        from "../saas/db.js";
 import { NotFoundError, BusinessError } from "../utils/errors.js";
 import logger from "../utils/logger.js";
 
@@ -46,11 +48,13 @@ router.post("/:siteId", asyncHandler(async (req, res) => {
 
   const result = await publishSite(siteId, req.userId);
 
+  await markSitePublished(siteId, req.userId, result.url);
+  await incrementPublishCount(req.userId);
+
   logger.info("Publish complete", {
-    userId:   req.userId,
+    userId: req.userId,
     siteId,
-    url:      result.url,
-    duration: result.duration_ms,
+    url:    result.url,
   });
 
   send(res, result);

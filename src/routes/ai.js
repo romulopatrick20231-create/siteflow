@@ -16,7 +16,7 @@ import { requireAuth }  from "../middleware/auth.js";
 import { aiLimiter }    from "../middleware/rateLimiter.js";
 import { validate, schemas } from "../middleware/validate.js";
 import { asyncHandler, send } from "../utils/asyncHandler.js";
-import { generateContent }   from "../saas/aiGenerate.js";
+import { generateContent, generateFromPrompt } from "../saas/aiGenerate.js";
 import { getCredits }        from "../saas/credits.js";
 import { getAdminClient }    from "../saas/db.js";
 import { NotFoundError }     from "../utils/errors.js";
@@ -37,23 +37,40 @@ router.post(
   "/generate",
   validate(schemas.generateAI),
   asyncHandler(async (req, res) => {
-    const { siteId, type, context } = req.body;
+    let { siteId, type, context, prompt } = req.body;
     const db = getAdminClient();
 
-    // Verify site ownership (prevents generating for others' sites)
-    const { count } = await db
-      .from("sites")
-      .select("id", { count: "exact", head: true })
-      .eq("id", siteId)
-      .eq("user_id", req.userId);
-    if (!count) throw new NotFoundError("Site");
+    if (siteId) {
+      // Explicit siteId — verify ownership
+      const { count } = await db
+        .from("sites")
+        .select("id", { count: "exact", head: true })
+        .eq("id", siteId)
+        .eq("user_id", req.userId);
+      if (!count) throw new NotFoundError("Site");
+    } else {
+      // Auto-resolve user's primary site
+      const { data: siteData } = await db
+        .from("sites")
+        .select("id")
+        .eq("user_id", req.userId)
+        .neq("status", "disabled")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .single();
+      siteId = siteData?.id ?? null;
+    }
 
-    const result = await generateContent(req.userId, type, context);
+    // prompt format: { siteId, prompt }
+    // typed format:  { siteId, type, context }
+    const result = prompt
+      ? await generateFromPrompt(req.userId, prompt)
+      : await generateContent(req.userId, type, context);
 
     logger.info("AI content generated", {
-      userId: req.userId,
+      userId:      req.userId,
       siteId,
-      type,
+      type:        type || "prompt",
       creditsLeft: result.credits_remaining,
     });
 

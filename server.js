@@ -31,15 +31,19 @@ import { AppError }                      from "./src/utils/errors.js";
 
 // ── Route imports ─────────────────────────────────────────────────────────────
 import authRouter                       from "./src/routes/auth.js";
+import siteRouter                       from "./src/routes/site.js";      // single-site convenience
 import sitesRouter                      from "./src/routes/sites.js";
 import contentRouter                    from "./src/routes/content.js";
 import productsRouter                   from "./src/routes/products.js";
 import imagesRouter                     from "./src/routes/images.js";
 import aiRouter                         from "./src/routes/ai.js";
+import creditsRouter                    from "./src/routes/credits.js";
 import publishRouter                    from "./src/routes/publish.js";
 import billingRouter, { webhookRouter } from "./src/routes/billing.js";
 import domainRouter                     from "./src/routes/domain.js";
 import adminRouter                      from "./src/routes/admin.js";
+import generateRouter                   from "./src/routes/generate.js";  // admin bulk generation (v1)
+import generateBatchRouter             from "./src/routes/generateBatch.js"; // niche-aware generation (v2)
 
 // ── App setup ─────────────────────────────────────────────────────────────────
 const app = express();
@@ -85,8 +89,9 @@ app.use(cors({
 app.use("/stripe/webhook", webhookRouter);
 
 // ── Body parser ───────────────────────────────────────────────────────────────
-app.use(express.json({ limit: "1mb" }));
-app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+// 10mb limit: base64-encoded images via POST /images can approach 7-8 MB
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // ── Global rate limiting ──────────────────────────────────────────────────────
 // Progressive delay starts at 80% of the hard limit (configured in env)
@@ -117,15 +122,19 @@ app.get("/health", (_req, res) => {
 
 // ── Mount routes ──────────────────────────────────────────────────────────────
 app.use("/auth",     authRouter);
+app.use("/site",     siteRouter);     // single-site convenience (GET/PUT /site, POST /site/publish)
 app.use("/sites",    sitesRouter);
 app.use("/content",  contentRouter);
 app.use("/products", productsRouter);
 app.use("/images",   imagesRouter);
 app.use("/ai",       aiRouter);
+app.use("/credits",  creditsRouter);
 app.use("/publish",  publishRouter);
 app.use("/billing",  billingRouter);
 app.use("/domain",   domainRouter);
 app.use("/admin",    adminRouter);
+app.use("/generate",       generateRouter);      // admin bulk generation (v1 — legacy)
+app.use("/generate-batch", generateBatchRouter); // niche-aware generation (v2)
 
 // ── 404 — no route matched ────────────────────────────────────────────────────
 app.use((_req, res) => {

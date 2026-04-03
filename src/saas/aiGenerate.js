@@ -135,3 +135,47 @@ export async function generateContent(userId, type, context) {
     credits_remaining: creditsLeft,
   };
 }
+
+/**
+ * Generate AI content from a free-form prompt.
+ * Deducts 1 credit before making the OpenAI call.
+ *
+ * @param {string} userId   — Supabase auth user ID
+ * @param {string} prompt   — User's free-form prompt
+ * @returns {Promise<Object>} — generated content + credits_remaining
+ */
+export async function generateFromPrompt(userId, prompt) {
+  // Deduct credit FIRST — if this throws NO_CREDITS, we never call OpenAI
+  const creditsLeft = await deductCredit(userId);
+
+  let parsed;
+  try {
+    const openai = getOpenAI();
+    const model  = process.env.OPENAI_MODEL || "gpt-4o-mini";
+
+    const response = await openai.chat.completions.create({
+      model,
+      temperature:     0.78,
+      max_tokens:      600,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SYSTEM },
+        { role: "user",   content: `${prompt}\n\nRetorne JSON com os campos gerados.` },
+      ],
+    });
+
+    const raw = response.choices[0].message.content.trim();
+    parsed = JSON.parse(raw);
+  } catch (err) {
+    if (err.message.includes("JSON")) {
+      throw new Error("A IA retornou um formato inválido. Tente novamente.");
+    }
+    throw err;
+  }
+
+  return {
+    type:              "prompt",
+    data:              parsed,
+    credits_remaining: creditsLeft,
+  };
+}

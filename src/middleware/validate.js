@@ -97,7 +97,7 @@ export const schemas = {
 
   // /products
   createProduct: Joi.object({
-    siteId:      uuid().required(),
+    siteId:      uuid(),          // optional — auto-resolved from JWT if omitted
     name:        shortStr(150).required(),
     description: longStr(1000),
     price:       price(),
@@ -115,11 +115,15 @@ export const schemas = {
   }).min(1),
 
   // /ai/generate
+  // Accepts two formats:
+  //   { siteId, prompt }            — free-form prompt (frontend simplified format)
+  //   { siteId, type, context }     — typed generation (existing format)
   generateAI: Joi.object({
-    siteId:  uuid().required(),
+    siteId:  uuid(),              // optional — auto-resolved from JWT if omitted
+    prompt:  Joi.string().max(2000).trim(),
     type:    Joi.string().valid(
       "headline","hero_copy","diferenciais","depoimentos","about_text","product_description"
-    ).required(),
+    ),
     context: Joi.object({
       businessName:  shortStr(150),
       niche:         shortStr(100),
@@ -127,8 +131,8 @@ export const schemas = {
       neighborhood:  shortStr(100),
       phone:         shortStr(20),
       productName:   shortStr(150),
-    }).required(),
-  }),
+    }),
+  }).or("prompt", "type"),
 
   // /publish/:siteId
   publishSite: Joi.object({
@@ -174,6 +178,91 @@ export const schemas = {
   domainConnect: Joi.object({
     siteId:   uuid().required(),
     domainId: uuid().required(),
+  }),
+
+  // ── CMS ──────────────────────────────────────────────────────────────────
+
+  // PATCH /sites/:id/edit
+  siteEdit: Joi.object({
+    path:  Joi.string()
+      .max(300)
+      .pattern(/^[a-zA-Z0-9_*]+(\.[a-zA-Z0-9_*]+)*$/)
+      .required()
+      .messages({
+        "string.pattern.base": "path must be a dot-separated alphanumeric key path",
+      }),
+    value: Joi.alternatives()
+      .try(
+        Joi.string().max(5000).allow("", null),
+        Joi.number(),
+        Joi.boolean(),
+        Joi.valid(null)
+      )
+      .required(),
+  }),
+
+  // PATCH /sites/:id/config
+  siteConfig: Joi.object({
+    primaryColor:   Joi.string().pattern(/^#[0-9a-fA-F]{3,8}$/).allow(null),
+    secondaryColor: Joi.string().pattern(/^#[0-9a-fA-F]{3,8}$/).allow(null),
+    logo:           Joi.string().uri().max(1000).allow(null),
+    contact: Joi.object({
+      phone:    Joi.string().max(30).allow("", null),
+      email:    Joi.string().email().max(200).allow("", null),
+      whatsapp: Joi.string().max(30).allow("", null),
+      address:  Joi.string().max(300).allow("", null),
+    }).optional(),
+    social: Joi.object({
+      instagram: Joi.string().max(200).allow("", null),
+      facebook:  Joi.string().max(200).allow("", null),
+      tiktok:    Joi.string().max(200).allow("", null),
+      youtube:   Joi.string().max(200).allow("", null),
+    }).optional(),
+  }).min(1),
+
+  // PATCH /sites/:id/status
+  siteStatus: Joi.object({
+    status: Joi.string()
+      .valid("draft", "ready", "published", "archived")
+      .required(),
+  }),
+
+  // PATCH /sites/:id/edits — batch edit (atomic)
+  batchEdit: Joi.object({
+    edits: Joi.array()
+      .items(
+        Joi.object({
+          path: Joi.string()
+            .max(300)
+            .pattern(/^[a-zA-Z0-9_]+(\.([a-zA-Z0-9_]+|\*))*$/)
+            .required()
+            .messages({
+              "string.pattern.base": "path must be a dot-separated alphanumeric key path",
+            }),
+          value: Joi.alternatives()
+            .try(
+              Joi.string().max(5000).allow("", null),
+              Joi.number(),
+              Joi.boolean(),
+              Joi.valid(null)
+            )
+            .required(),
+        })
+      )
+      .min(1)
+      .max(50)
+      .required(),
+  }),
+
+  // DELETE /sites/:id/edit — revert a single field
+  revertEdit: Joi.object({
+    path: Joi.string()
+      .max(300)
+      .pattern(/^[a-zA-Z0-9_*]+(\.[a-zA-Z0-9_*]+)*$/)
+      .required()
+      .messages({
+        "string.pattern.base": "path must be a dot-separated alphanumeric key path",
+      }),
   }),
 
   // /admin
