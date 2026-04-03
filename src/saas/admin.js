@@ -26,13 +26,13 @@ const PLAN_PUBLISH = { basic: 5,  pro: 50, admin: 9999 };
 export async function listUsers({ limit = 100, offset = 0, search, plan, active } = {}) {
   const db = getAdminClient();
   let query = db
-    .from("user_overview")   // view defined in saas-schema.sql
-    .select("id, email, plan, is_active, publish_count_month, publish_limit, credits_remaining, credits_used_total, total_sites, published_sites, disabled_sites, created_at")
+    .from("users")
+    .select("id, email, plan, is_admin, is_active, publish_count_month, publish_limit, created_at")
     .range(offset, offset + limit - 1)
     .order("created_at", { ascending: false });
 
-  if (search)            query = query.ilike("email", `%${search}%`);
-  if (plan)              query = query.eq("plan", plan);
+  if (search)               query = query.ilike("email", `%${search}%`);
+  if (plan)                 query = query.eq("plan", plan);
   if (active !== undefined) query = query.eq("is_active", active);
 
   const { data, error } = await query;
@@ -46,8 +46,8 @@ export async function listUsers({ limit = 100, offset = 0, search, plan, active 
 export async function getUser(userId) {
   const db = getAdminClient();
   const { data, error } = await db
-    .from("user_overview")
-    .select("id, email, plan, is_active, publish_count_month, publish_limit, credits_remaining, credits_used_total, total_sites, published_sites, disabled_sites, created_at")
+    .from("users")
+    .select("id, email, plan, is_admin, is_active, publish_count_month, publish_limit, created_at")
     .eq("id", userId)
     .single();
 
@@ -125,11 +125,7 @@ export async function listAllSites({ limit = 100, offset = 0, status, search } =
   const db = getAdminClient();
   let query = db
     .from("sites")
-    .select(`
-      id, user_id, slug, business_name, niche, status,
-      site_url, publish_count, last_published_at, created_at,
-      users ( email, plan, is_active )
-    `)
+    .select("id, user_id, slug, business_name, niche, status, site_url, publish_count, last_published_at, created_at")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
