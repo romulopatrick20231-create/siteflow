@@ -6,15 +6,18 @@
  *
  * ── Users ──────────────────────────────────────────────────────────────────
  * GET   /admin/users                  — list users  (?search, ?plan, ?active)
+ * POST  /admin/users/create           — create user  { email, password, plan? }
  * POST  /admin/set-plan               — change plan (body: { userId, plan })
  * POST  /admin/set-credits            — set credits (body: { userId, amount })
  * POST  /admin/disable-user           — deactivate  (body: { userId })
  * POST  /admin/enable-user            — reactivate  (body: { userId })
  *
- * GET   /admin/users/:id/credits       — get credit balance
- * PATCH /admin/users/:id/ban          — ban or unban  { banned, reason? }
- * PATCH /admin/users/:id/plan         — set plan      { plan }
- * PATCH /admin/users/:id/credits      — set credits   { amount }
+ * GET   /admin/users/:id/credits      — get credit balance
+ * PATCH /admin/users/:id/password     — reset password  { password }
+ * PATCH /admin/users/:id/role         — set admin flag  { is_admin }
+ * PATCH /admin/users/:id/ban          — ban or unban    { banned, reason? }
+ * PATCH /admin/users/:id/plan         — set plan        { plan }
+ * PATCH /admin/users/:id/credits      — set credits     { amount }
  *
  * ── Sites ──────────────────────────────────────────────────────────────────
  * GET   /admin/sites                  — list all sites (?search, ?status)
@@ -37,6 +40,9 @@ import {
   listUsers,
   getUser,
   getUserCredits,
+  createAdminUser,
+  resetUserPassword,
+  setUserRole,
   setUserPlan,
   setUserCredits,
   disableUser,
@@ -66,8 +72,15 @@ const disableSiteSchema = Joi.object({ siteId: uuid(), reason: Joi.string().max(
 const siteIdSchema      = Joi.object({ siteId: uuid() });
 
 // RESTful param schemas
-const banSchema     = Joi.object({ banned: Joi.boolean().required(), reason: Joi.string().max(500).trim().allow("", null) });
-const planSchema    = Joi.object({ plan: Joi.string().valid("basic", "pro", "admin").required() });
+const createUserSchema = Joi.object({
+  email:    Joi.string().email().required(),
+  password: Joi.string().min(8).max(128).required(),
+  plan:     Joi.string().valid("basic", "pro", "admin").default("basic"),
+});
+const passwordSchema = Joi.object({ password: Joi.string().min(8).max(128).required() });
+const roleSchema     = Joi.object({ is_admin: Joi.boolean().required() });
+const banSchema      = Joi.object({ banned: Joi.boolean().required(), reason: Joi.string().max(500).trim().allow("", null) });
+const planSchema     = Joi.object({ plan: Joi.string().valid("basic", "pro", "admin").required() });
 const creditsSchema = Joi.object({
   amount:            Joi.number().integer().min(0).max(99999),
   credits:           Joi.number().integer().min(0).max(99999),
@@ -138,6 +151,60 @@ router.get("/users", asyncHandler(async (req, res) => {
     return res.status(500).json({ error: "Internal server error", message: error.message });
   }
 }));
+
+// ── POST /admin/users/create ──────────────────────────────────────────────────
+// Create a new user account. Body: { email, password, plan? }
+router.post(
+  "/users/create",
+  validate(createUserSchema),
+  asyncHandler(async (req, res) => {
+    const { email, password, plan } = req.body;
+
+    const user = await createAdminUser(email, password, plan);
+    logger.info("Admin created user", { adminId: req.userId, email, plan });
+    res.status(201).json(user);
+  })
+);
+
+// ── PATCH /admin/users/:id/password ───────────────────────────────────────────
+// Reset a user's password. Body: { password }
+router.patch(
+  "/users/:id/password",
+  validate(passwordSchema),
+  asyncHandler(async (req, res) => {
+    const targetId = req.params.id;
+    const { password } = req.body;
+
+    const user = await getUser(targetId);
+    if (!user) throw new NotFoundError("User");
+
+    await resetUserPassword(targetId, password);
+    logger.info("Admin reset user password", { adminId: req.userId, targetUser: targetId, email: user.email });
+    send(res, { updated: true, userId: targetId, email: user.email });
+  })
+);
+
+// ── PATCH /admin/users/:id/role ───────────────────────────────────────────────
+// Set is_admin flag. Body: { is_admin: boolean }
+router.patch(
+  "/users/:id/role",
+  validate(roleSchema),
+  asyncHandler(async (req, res) => {
+    const targetId = req.params.id;
+    const { is_admin } = req.body;
+
+    if (targetId === req.userId && !is_admin) {
+      throw new BusinessError("Cannot remove your own admin role", "SELF_DEMOTE");
+    }
+
+    const user = await getUser(targetId);
+    if (!user) throw new NotFoundError("User");
+
+    await setUserRole(targetId, is_admin);
+    logger.warn("Admin updated user role", { adminId: req.userId, targetUser: targetId, email: user.email, is_admin });
+    send(res, { updated: true, userId: targetId, email: user.email, is_admin });
+  })
+);
 
 // ── POST /admin/set-plan ──────────────────────────────────────────────────────
 router.post("/set-plan", validate(setPlanSchema), asyncHandler(async (req, res) => {

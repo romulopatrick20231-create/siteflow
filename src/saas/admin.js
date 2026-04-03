@@ -103,6 +103,64 @@ export async function setUserCredits(userId, amount) {
 }
 
 /**
+ * Create a new user in Supabase Auth and provision their plan + credits.
+ * @param {string} email
+ * @param {string} password
+ * @param {string} plan — "basic" | "pro" | "admin"
+ * @returns {Promise<{ id, email, plan }>}
+ */
+export async function createAdminUser(email, password, plan) {
+  if (!PLAN_CREDITS[plan]) throw new Error(`Invalid plan: ${plan}`);
+  const db = getAdminClient();
+
+  const { data: { user }, error } = await db.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  if (error) throw new Error(`createAdminUser: ${error.message}`);
+
+  // Trigger may not fire instantly — upsert users row defensively
+  await db.from("users").upsert(
+    { id: user.id, email, plan, publish_limit: PLAN_PUBLISH[plan] },
+    { onConflict: "id" }
+  );
+
+  // Provision credits
+  await db.from("user_credits").upsert(
+    { user_id: user.id, credits_remaining: PLAN_CREDITS[plan], credits_used_total: 0 },
+    { onConflict: "user_id" }
+  );
+
+  return { id: user.id, email, plan };
+}
+
+/**
+ * Reset a user's password via the admin Auth API.
+ * @param {string} userId
+ * @param {string} password
+ */
+export async function resetUserPassword(userId, password) {
+  const db = getAdminClient();
+  const { error } = await db.auth.admin.updateUserById(userId, { password });
+  if (error) throw new Error(`resetUserPassword: ${error.message}`);
+}
+
+/**
+ * Set the is_admin flag on a user.
+ * @param {string} userId
+ * @param {boolean} isAdmin
+ */
+export async function setUserRole(userId, isAdmin) {
+  const db = getAdminClient();
+  const { error } = await db
+    .from("users")
+    .update({ is_admin: isAdmin, updated_at: new Date().toISOString() })
+    .eq("id", userId);
+  if (error) throw new Error(`setUserRole: ${error.message}`);
+}
+
+/**
  * Disable a user account + all their sites.
  */
 export async function disableUser(userId) {
