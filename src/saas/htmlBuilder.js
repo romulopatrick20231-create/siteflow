@@ -528,6 +528,195 @@ function renderContentProducts(data, copy) {
 </section>`;
 }
 
+// ── Extra section renderers ───────────────────────────────────────────────────
+
+function renderTeam(section, copy) {
+  const d = section.data || {};
+  const members = (d.members || []).slice(0, 8);
+  if (!members.length) return "";
+  const cards = members.map(m => {
+    const hasPhoto = m.image?.url;
+    return `<div class="team-card sr-up" data-3d>
+  ${hasPhoto
+    ? `<img src="${m.image.url}" alt="${m.name}" class="team-photo" loading="lazy">`
+    : `<div class="team-avatar" style="${avatarGradient(m.name || "T")}">${(m.name || "T").charAt(0).toUpperCase()}</div>`}
+  <div class="team-name">${m.name || ""}</div>
+  <div class="team-role">${m.role || m.specialty || ""}</div>
+  ${m.bio ? `<p class="team-bio">${m.bio}</p>` : ""}
+</div>`;
+  }).join("");
+  return `<section class="team-section" id="equipe">
+<div class="wrap">
+  <div class="sh sr-fade">
+    <div class="section-label">Nossa Equipe</div>
+    <h2 class="section-title">${d.title || "Conheça Nossa Equipe"}</h2>
+    ${d.subtitle ? `<p style="color:var(--muted-fg);font-size:16px;max-width:600px">${d.subtitle}</p>` : ""}
+  </div>
+  <div class="team-grid">${cards}</div>
+</div>
+</section>`;
+}
+
+function renderStepsCta(section, wa) {
+  const d = section.data || {};
+  const steps = (d.steps || []).slice(0, 4);
+  if (!steps.length) return "";
+  const cards = steps.map((step, i) => `<div class="step-card sr-up">
+  <div class="step-num">${step.step || i + 1}</div>
+  ${step.icon ? `<div class="step-icon">${step.icon}</div>` : ""}
+  <h3 class="step-title">${step.title || ""}</h3>
+  <p class="step-desc">${step.description || ""}</p>
+</div>`).join("");
+  return `<section class="steps-section" id="como-funciona">
+<div class="wrap">
+  <div class="sh sr-fade">
+    <div class="section-label">Como Funciona</div>
+    <h2 class="section-title">${d.title || "Simples e Fácil"}</h2>
+    ${d.subtitle ? `<p style="color:var(--muted-fg);font-size:16px;max-width:600px">${d.subtitle}</p>` : ""}
+  </div>
+  <div class="steps-grid">${cards}</div>
+  ${d.cta ? `<div class="steps-cta-wrap sr-up"><a class="btn btn-wa" href="${wa}" target="_blank" rel="noopener">${WA_SVG} ${d.cta.text || "Agendar Agora"}</a></div>` : ""}
+</div>
+</section>`;
+}
+
+function renderBookingCta(section, wa) {
+  const d = section.data || {};
+  if (!d.title) return "";
+  const benefits = (d.benefits || []).slice(0, 5);
+  return `<section class="booking-cta-section" id="agendar">
+<div class="wrap" style="max-width:760px;text-align:center">
+  <div class="sh sr-fade">
+    <div class="section-label">Agendar</div>
+    <h2 class="section-title">${d.title}</h2>
+    ${d.subtitle ? `<p style="font-size:18px;color:var(--muted-fg);max-width:560px;margin:0 auto 28px">${d.subtitle}</p>` : ""}
+    ${d.urgency ? `<div class="booking-urgency">${d.urgency}</div>` : ""}
+  </div>
+  ${benefits.length ? `<ul class="booking-benefits sr-up">${benefits.map(b => `<li class="booking-benefit">${b}</li>`).join("")}</ul>` : ""}
+  <div class="sr-up" style="margin-top:40px">
+    <a class="btn btn-wa btn-wa-cta" href="${wa}" target="_blank" rel="noopener">${WA_SVG} ${d.primary_cta?.text || "Agendar pelo WhatsApp"}</a>
+  </div>
+</div>
+</section>`;
+}
+
+function renderBeforeAfter(section, copy) {
+  const d = section.data || {};
+  const cases = (d.cases || []).slice(0, 6);
+  if (!cases.length) return "";
+  const cards = cases.map(c => {
+    const imgUrl = c.image?.url;
+    return `<div class="ba-card sr-up">
+  <div class="ba-img-wrap">
+    ${imgUrl
+      ? `<img src="${imgUrl}" alt="${c.treatment || "Resultado"}" class="ba-img" loading="lazy">`
+      : `<div class="ba-no-img">✨</div>`}
+    <span class="ba-label ba-label-after">Depois</span>
+  </div>
+  <div class="ba-body">
+    <div class="ba-treatment">${c.treatment || ""}</div>
+    ${c.patient_note ? `<p class="ba-note">"${c.patient_note}"</p>` : ""}
+  </div>
+</div>`;
+  }).join("");
+  return `<section class="before-after-section" id="resultados">
+<div class="wrap">
+  <div class="sh sr-fade">
+    <div class="section-label">${copy.labelGallery || "Resultados"}</div>
+    <h2 class="section-title">${d.title || copy.titleGallery || "Resultados Reais"}</h2>
+  </div>
+  <div class="ba-grid">${cards}</div>
+</div>
+</section>`;
+}
+
+function renderPricingFull(section, wa) {
+  const d = section.data || {};
+  const tiers = (d.tiers || []).slice(0, 4);
+  if (!tiers.length) return "";
+  const cards = tiers.map(tier => {
+    const features = (tier.features || []).slice(0, 8);
+    return `<div class="pricing-card${tier.highlighted ? " highlighted" : ""} sr-up">
+  ${tier.highlighted ? `<div class="pricing-badge">Mais Popular</div>` : ""}
+  <div class="pricing-name">${tier.name || ""}</div>
+  <div class="pricing-price">${tier.price || ""}</div>
+  ${tier.period ? `<div class="pricing-period">${tier.period}</div>` : ""}
+  <ul class="pricing-features">${features.map(f => `<li class="pricing-feature">${f}</li>`).join("")}</ul>
+  <a class="pricing-cta" href="${wa}" target="_blank" rel="noopener">${tier.highlighted ? "Quero Esse Plano" : "Saber Mais"}</a>
+</div>`;
+  }).join("");
+  return `<section class="pricing-section" id="planos">
+<div class="wrap">
+  <div class="sh sr-fade" style="text-align:center">
+    <div class="section-label">Planos</div>
+    <h2 class="section-title">${d.title || "Nossos Planos"}</h2>
+    ${d.subtitle ? `<p style="color:var(--muted-fg);font-size:16px;max-width:600px;margin:0 auto">${d.subtitle}</p>` : ""}
+  </div>
+  <div class="pricing-grid">${cards}</div>
+</div>
+</section>`;
+}
+
+function renderTrustBarSection(section) {
+  const d = section.data || {};
+  const items = (d.items || []).slice(0, 8);
+  if (!items.length) return "";
+  const itemHtml = items.map(item => `<div class="trust-item sr-up">
+  <span class="trust-item-icon">${item.icon || "✓"}</span>
+  <span>${item.text || ""}</span>
+</div>`).join("");
+  return `<div class="trust-bar-section"><div class="trust-bar-inner">${itemHtml}</div></div>`;
+}
+
+/**
+ * Render all section types that don't have dedicated manual renderers.
+ * This ensures no AI-generated content is silently discarded.
+ */
+function renderExtraSections(site, { wa, copy, d: design }) {
+  // These are already handled elsewhere in buildHTML
+  const SKIP = new Set([
+    "hero","hero_statement","hero_story","hero_social_proof",
+    "highlight_bar","trust_bar",
+    "stats_showcase","impact_numbers",
+    "menu_featured","menu_categories","location_hours",
+    "image_gallery","image_grid",
+    "testimonials","testimonials_story","testimonials_featured",
+    "services_grid","services_featured","services_accordion",
+    "products_grid","imoveis_grid",
+    "section_header",
+  ]);
+
+  const rendered = [];
+  const seen = new Set(); // deduplicate same type across pages
+
+  for (const page of (site.content?.pages || [])) {
+    for (const s of (page.sections || [])) {
+      if (SKIP.has(s.type) || seen.has(s.type)) continue;
+      seen.add(s.type);
+
+      let html = "";
+      if (s.type === "team_grid" || s.type === "team_featured") {
+        html = renderTeam(s, copy);
+      } else if (s.type === "treatments_grid") {
+        const items = (s.data?.treatments || []).slice(0, 6);
+        if (items.length) html = renderServices(items, design, copy);
+      } else if (s.type === "steps_cta") {
+        html = renderStepsCta(s, wa);
+      } else if (s.type === "booking_cta") {
+        html = renderBookingCta(s, wa);
+      } else if (s.type === "before_after_gallery" || s.type === "before_after_slider") {
+        html = renderBeforeAfter(s, copy);
+      } else if (s.type === "pricing_table") {
+        html = renderPricingFull(s, wa);
+      }
+
+      if (html) rendered.push(html);
+    }
+  }
+
+  return rendered.join("\n");
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function buildHTML(site) {
@@ -573,18 +762,36 @@ export function buildHTML(site) {
   const isPetshop     = site.niche === "Clínica Veterinária" || site.niche?.toLowerCase().includes("pet");
   const isImobiliaria = site.niche === "Imobiliária";
 
+  // Detect extra section types for smart nav
+  const allSections = (site.content?.pages || []).flatMap(p => p.sections || []);
+  const hasTeam     = allSections.some(s => ["team_grid","team_featured"].includes(s.type));
+  const hasSteps    = allSections.some(s => ["steps_cta","booking_cta"].includes(s.type));
+  const hasPricing  = allSections.some(s => s.type === "pricing_table");
+  const hasResults  = allSections.some(s => ["before_after_gallery","before_after_slider"].includes(s.type));
+
+  // Compute extra sections HTML (all section types without dedicated manual renderers)
+  const extraSections = renderExtraSections(site, { wa, copy, d });
+
+  // Trust bar section (placed early, below stats)
+  const trustBarSection = allSections.find(s => s.type === "trust_bar");
+  const trustBarHtml    = trustBarSection ? renderTrustBarSection(trustBarSection) : "";
+
   // Build smart nav links
   const NAV_ITEMS = [
-    { label: "Início",       href: "#inicio",          always: true },
-    { label: copy.labelMenu || "Cardápio", href: "#cardapio",  show: menuData.hasMenu },
-    { label: "Imóveis",      href: "#imoveis",         show: !!imoveisData?.length },
-    { label: "Serviços",     href: "#servicos",         show: svcItems.length > 0 && !menuData.hasMenu },
-    { label: "Produtos",     href: "#produtos",         show: hasProducts },
-    { label: "Catálogo",     href: "#produtos-catalogo",show: !!contentProds?.featured?.length && !hasProducts },
-    { label: "Galeria",      href: "#galeria",          show: galleryImgs.length > 0 },
-    { label: "Localização",  href: "#localizacao",      show: !!locationData },
-    { label: "Depoimentos",  href: "#depoimentos",      show: !!(richTestis?.length) },
-    { label: "Contato",      href: "#contato",          always: true },
+    { label: "Início",          href: "#inicio",           always: true },
+    { label: copy.labelMenu || "Cardápio", href: "#cardapio", show: menuData.hasMenu },
+    { label: "Imóveis",         href: "#imoveis",          show: !!imoveisData?.length },
+    { label: "Serviços",        href: "#servicos",         show: svcItems.length > 0 && !menuData.hasMenu },
+    { label: "Produtos",        href: "#produtos",         show: hasProducts },
+    { label: "Catálogo",        href: "#produtos-catalogo",show: !!contentProds?.featured?.length && !hasProducts },
+    { label: "Como Funciona",   href: "#como-funciona",    show: hasSteps },
+    { label: "Equipe",          href: "#equipe",           show: hasTeam },
+    { label: "Planos",          href: "#planos",           show: hasPricing },
+    { label: "Resultados",      href: "#resultados",       show: hasResults },
+    { label: "Galeria",         href: "#galeria",          show: galleryImgs.length > 0 },
+    { label: "Localização",     href: "#localizacao",      show: !!locationData },
+    { label: "Depoimentos",     href: "#depoimentos",      show: !!(richTestis?.length) },
+    { label: "Contato",         href: "#contato",          always: true },
   ];
   const navLinks = NAV_ITEMS
     .filter(i => i.always || i.show)
@@ -964,6 +1171,68 @@ export function buildHTML(site) {
     .hours-time{color:var(--muted-fg)}
     @media(max-width:768px){.location-grid{grid-template-columns:1fr}}
     @media(max-width:480px){.imoveis-search input{width:140px}}
+    /* ── Team section ── */
+    .team-section{background:var(--bg)}
+    .team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:28px}
+    .team-card{text-align:center;padding:32px 20px 28px;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);box-shadow:var(--sh);transition:box-shadow .25s,transform .25s}
+    .team-card:hover{box-shadow:0 20px 64px rgba(0,0,0,.15),0 0 0 1.5px var(--primary);transform:translateY(-4px)}
+    .team-photo{width:96px;height:96px;border-radius:50%;object-fit:cover;margin:0 auto 16px;border:3px solid var(--primary)}
+    .team-avatar{width:96px;height:96px;border-radius:50%;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;font-size:38px;font-weight:800;color:#fff;flex-shrink:0}
+    .team-name{font-size:17px;font-weight:800;margin-bottom:4px}
+    .team-role{font-size:12px;color:var(--primary);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px}
+    .team-bio{font-size:13px;color:var(--muted-fg);line-height:1.65}
+    /* ── Steps / Como Funciona ── */
+    .steps-section{background:#fff}
+    .steps-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px}
+    .step-card{position:relative;text-align:center;padding:36px 24px 28px;border-radius:var(--r)}
+    .step-num{width:60px;height:60px;border-radius:50%;background:var(--primary);color:var(--primary-fg);font-family:var(--font-h);font-size:26px;font-weight:900;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+    .step-icon{font-size:28px;margin-bottom:10px}
+    .step-title{font-size:16px;font-weight:800;margin-bottom:8px}
+    .step-desc{font-size:14px;color:var(--muted-fg);line-height:1.65}
+    .steps-cta-wrap{text-align:center;margin-top:48px}
+    /* ── Booking CTA ── */
+    .booking-cta-section{background:var(--bg)}
+    .booking-urgency{display:inline-block;background:var(--accent);color:var(--accent-fg);font-size:13px;font-weight:700;padding:6px 20px;border-radius:100px;margin-bottom:24px}
+    .booking-benefits{list-style:none;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-bottom:8px}
+    .booking-benefit{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--fg)}
+    .booking-benefit::before{content:"✓";width:22px;height:22px;border-radius:50%;background:var(--primary);color:var(--primary-fg);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0}
+    /* ── Before / After ── */
+    .before-after-section{background:#fff}
+    .ba-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:24px}
+    .ba-card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);transition:box-shadow .2s,transform .2s}
+    .ba-card:hover{box-shadow:0 20px 60px rgba(0,0,0,.16);transform:translateY(-3px)}
+    .ba-img-wrap{position:relative;height:220px;overflow:hidden}
+    .ba-img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
+    .ba-card:hover .ba-img{transform:scale(1.05)}
+    .ba-no-img{height:220px;background:var(--muted);display:flex;align-items:center;justify-content:center;font-size:52px}
+    .ba-label{position:absolute;top:10px;padding:4px 14px;border-radius:100px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+    .ba-label-before{left:10px;background:rgba(0,0,0,.55);color:#fff}
+    .ba-label-after{right:10px;background:var(--primary);color:var(--primary-fg)}
+    .ba-body{padding:18px 20px}
+    .ba-treatment{font-size:15px;font-weight:800;margin-bottom:6px}
+    .ba-note{font-size:13px;color:var(--muted-fg);line-height:1.5;font-style:italic}
+    /* ── Pricing table ── */
+    .pricing-section{background:var(--muted);padding:96px 24px}
+    .pricing-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:24px;align-items:center}
+    .pricing-card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:36px 28px;box-shadow:var(--sh);transition:transform .25s,box-shadow .25s;position:relative}
+    .pricing-card.highlighted{background:var(--primary);color:#fff;border-color:var(--primary);transform:scale(1.04);box-shadow:0 20px 64px rgba(0,0,0,.22)}
+    .pricing-card.highlighted .pricing-price,.pricing-card.highlighted .pricing-name{color:#fff}
+    .pricing-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:var(--accent);color:var(--accent-fg);font-size:10px;font-weight:800;padding:5px 16px;border-radius:100px;white-space:nowrap;text-transform:uppercase;letter-spacing:.08em}
+    .pricing-name{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px;opacity:.7}
+    .pricing-price{font-family:var(--font-h);font-size:clamp(36px,4vw,56px);font-weight:900;line-height:1;margin-bottom:4px;color:var(--primary)}
+    .pricing-period{font-size:13px;opacity:.55;margin-bottom:28px}
+    .pricing-features{list-style:none;margin-bottom:32px}
+    .pricing-feature{font-size:14px;padding:9px 0;border-bottom:1px solid rgba(0,0,0,.06);display:flex;align-items:center;gap:10px}
+    .pricing-card.highlighted .pricing-feature{border-bottom-color:rgba(255,255,255,.1);color:rgba(255,255,255,.9)}
+    .pricing-feature::before{content:"✓";width:20px;height:20px;border-radius:50%;background:var(--accent);color:var(--accent-fg);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;flex-shrink:0}
+    .pricing-cta{width:100%;padding:14px;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;text-decoration:none;display:flex;align-items:center;justify-content:center;background:var(--primary);color:var(--primary-fg);border:none;transition:background .15s,transform .15s}
+    .pricing-cta:hover{transform:scale(1.02)}
+    .pricing-card.highlighted .pricing-cta{background:#fff;color:var(--primary)}
+    /* ── Trust bar ── */
+    .trust-bar-section{background:var(--muted);border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr);padding:28px 24px}
+    .trust-bar-inner{max-width:1160px;margin:0 auto;display:flex;align-items:center;flex-wrap:wrap;gap:20px 40px;justify-content:center}
+    .trust-item{display:flex;align-items:center;gap:10px;font-size:14px;font-weight:700;color:var(--fg)}
+    .trust-item-icon{font-size:22px;flex-shrink:0}
   </style>
 </head>
 <body>
@@ -1036,9 +1305,13 @@ ${location ? `<div class="proof-bar"><p>${copy.proofBar.replace("{city}", locati
 
 ${highlightData ? renderHighlightBar(highlightData) : ""}
 
+${trustBarHtml}
+
 ${stats.length > 0 ? renderStats(stats) : ""}
 
 ${menuData.hasMenu ? renderMenuFull(menuData, copy, wa, isRestaurante) : svcItems.length > 0 ? renderServices(svcItems, d, copy) : ""}
+
+${extraSections}
 
 ${imoveisData?.length ? renderImoveisFull(imoveisData, copy, wa, site.business_name) : ""}
 
