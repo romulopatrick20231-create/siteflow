@@ -58,7 +58,6 @@ async function getPlaceDetails(placeId) {
         "user_ratings_total",
         "opening_hours",
         "website",
-        "photos",
         "reviews",
         "types",
         "vicinity",
@@ -126,11 +125,6 @@ export async function enrichLeadWithPlaces(lead) {
     const details = await getPlaceDetails(placeId);
     if (!details) return lead;
 
-    // Up to 5 hero photos
-    const photos = (details.photos || [])
-      .slice(0, 5)
-      .map(p => photoUrl(p.photo_reference));
-
     // Top 3 reviews (filter out very short ones)
     const reviews = (details.reviews || [])
       .filter(r => r.text?.length > 40)
@@ -141,13 +135,12 @@ export async function enrichLeadWithPlaces(lead) {
 
     const placesData = {
       placeId,
-      name:        details.name,
-      address:     details.formatted_address,
-      phone:       details.formatted_phone_number || details.international_phone_number,
-      rating:      details.rating,
+      name:         details.name,
+      address:      details.formatted_address,
+      phone:        details.formatted_phone_number || details.international_phone_number,
+      rating:       details.rating,
       totalRatings: details.user_ratings_total,
       hours,
-      photos,      // Google Maps photo URLs — used for hero slider
       reviews,     // Real customer reviews — injected into AI prompt
       website:     details.website,
       vicinity:    details.vicinity,
@@ -156,7 +149,6 @@ export async function enrichLeadWithPlaces(lead) {
     logger.info("Google Places enrichment OK", {
       businessName: lead.businessName,
       rating:       placesData.rating,
-      photos:       photos.length,
       reviews:      reviews.length,
     });
 

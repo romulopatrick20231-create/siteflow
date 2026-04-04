@@ -98,9 +98,8 @@ function assembleSiteJson({ lead, nicheContent, images }) {
       city:    lead.city     || null,
       address: lead.address  || null,
     },
-    // Google Places real data — persisted so htmlBuilder can use photos + rating
-    placesData:   lead.placesData   || null,
-    placesPhotos: lead.placesData?.photos || [],
+    // Google Places real data (rating, reviews, hours — photos come from Pexels)
+    placesData: lead.placesData || null,
     meta: publicMeta,
     generation: {
       personality:    generation.personality    || null,
