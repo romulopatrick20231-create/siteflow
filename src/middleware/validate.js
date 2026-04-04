@@ -132,6 +132,13 @@ export const schemas = {
       phone:         shortStr(20),
       productName:   shortStr(150),
     }),
+    // Site context for prompt-based generation — fields the AI may change
+    siteContext: Joi.object({
+      name:        shortStr(150).allow("", null),
+      headline:    shortStr(300).allow("", null),
+      description: shortStr(1000).allow("", null),
+      phone:       shortStr(30).allow("", null),
+    }),
   }).or("prompt", "type"),
 
   // /publish/:siteId

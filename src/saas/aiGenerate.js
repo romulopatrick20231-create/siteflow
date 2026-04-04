@@ -136,17 +136,42 @@ export async function generateContent(userId, type, context) {
   };
 }
 
+// ── Site-edit system prompt ───────────────────────────────────────────────────
+const SITE_EDIT_SYSTEM = `Você é um assistente especializado em editar sites de negócios locais brasileiros.
+
+Campos válidos que você pode alterar:
+  - name        : nome do negócio (ex: "Pizzaria do João")
+  - headline    : título principal exibido no hero (ex: "A melhor pizza da cidade")
+  - description : descrição curta do negócio (ex: "Pizza artesanal feita no forno a lenha")
+  - phone       : telefone ou WhatsApp (ex: "(11) 99999-9999")
+
+REGRAS ABSOLUTAS:
+1. Retorne APENAS JSON válido — sem markdown, sem texto fora do JSON.
+2. Inclua SOMENTE os campos que o usuário pediu para alterar.
+3. Se o pedido for ambíguo (não ficou claro qual campo alterar), retorne:
+   {"__ask__": "Qual campo você quer alterar? (name, headline, description ou phone)"}
+4. Nunca invente campos fora da lista acima.
+5. Escreva em português (pt-BR), linguagem persuasiva e humana.`;
+
 /**
- * Generate AI content from a free-form prompt.
+ * Generate AI content from a free-form prompt, enriched with site context.
  * Deducts 1 credit before making the OpenAI call.
  *
- * @param {string} userId   — Supabase auth user ID
- * @param {string} prompt   — User's free-form prompt
- * @returns {Promise<Object>} — generated content + credits_remaining
+ * @param {string} userId        — Supabase auth user ID
+ * @param {string} prompt        — User's free-form prompt
+ * @param {Object} [siteContext] — Current site values { name, headline, description, phone }
+ * @returns {Promise<Object>}    — { type, data, credits_remaining }
  */
-export async function generateFromPrompt(userId, prompt) {
+export async function generateFromPrompt(userId, prompt, siteContext = null) {
   // Deduct credit FIRST — if this throws NO_CREDITS, we never call OpenAI
   const creditsLeft = await deductCredit(userId);
+
+  // Build the user message — inject current site values so the AI has context
+  const contextBlock = siteContext
+    ? `\nContexto atual do site:\n${JSON.stringify(siteContext, null, 2)}\n`
+    : "";
+
+  const userMessage = `${contextBlock}\nPedido do usuário: ${prompt}`;
 
   let parsed;
   try {
@@ -155,12 +180,12 @@ export async function generateFromPrompt(userId, prompt) {
 
     const response = await openai.chat.completions.create({
       model,
-      temperature:     0.78,
-      max_tokens:      600,
+      temperature:     0.72,
+      max_tokens:      400,
       response_format: { type: "json_object" },
       messages: [
-        { role: "system", content: SYSTEM },
-        { role: "user",   content: `${prompt}\n\nRetorne JSON com os campos gerados.` },
+        { role: "system", content: SITE_EDIT_SYSTEM },
+        { role: "user",   content: userMessage },
       ],
     });
 
@@ -173,9 +198,13 @@ export async function generateFromPrompt(userId, prompt) {
     throw err;
   }
 
+  // If the AI is asking for clarification, surface it clearly
+  const needsClarification = Boolean(parsed.__ask__);
+
   return {
-    type:              "prompt",
-    data:              parsed,
-    credits_remaining: creditsLeft,
+    type:               "prompt",
+    data:               parsed,
+    needs_clarification: needsClarification,
+    credits_remaining:  creditsLeft,
   };
 }

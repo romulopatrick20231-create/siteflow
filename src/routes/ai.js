@@ -61,10 +61,10 @@ router.post(
       siteId = siteData?.id ?? null;
     }
 
-    // prompt format: { siteId, prompt }
+    // prompt format: { siteId, prompt, siteContext? }
     // typed format:  { siteId, type, context }
     const result = prompt
-      ? await generateFromPrompt(req.userId, prompt)
+      ? await generateFromPrompt(req.userId, prompt, req.body.siteContext ?? null)
       : await generateContent(req.userId, type, context);
 
     logger.info("AI content generated", {
