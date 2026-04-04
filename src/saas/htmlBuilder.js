@@ -14,7 +14,7 @@
  *   - Scroll-reveal on all sections
  */
 
-import { getDesign, buildFontLinks } from "./designKnowledge.js";
+import { getDesign, buildFontLinks, getNicheCopy } from "./designKnowledge.js";
 
 // ── Rich content extraction ───────────────────────────────────────────────────
 
@@ -112,7 +112,7 @@ function waLink(phone, name) {
 
 const WA_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.558 4.126 1.535 5.857L.057 23.716a.5.5 0 00.641.592l5.945-1.561A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22a9.96 9.96 0 01-5.1-1.395l-.37-.218-3.797.996 1.012-3.698-.24-.381A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>`;
 
-function renderServices(items, d) {
+function renderServices(items, d, copy) {
   if (!items.length) return "";
   const cards = items.map(item => {
     const hasImg = item.image?.url;
@@ -130,8 +130,8 @@ function renderServices(items, d) {
   return `<section class="services-section" id="servicos">
 <div class="wrap">
   <div class="sh sr-fade">
-    <div class="section-label">O Que Oferecemos</div>
-    <h2 class="section-title">Nossos Serviços</h2>
+    <div class="section-label">${copy.labelServices}</div>
+    <h2 class="section-title">${copy.titleServices}</h2>
   </div>
   <div class="svc-grid">${cards}</div>
 </div>
@@ -151,7 +151,7 @@ function renderStats(stats) {
   return `<section class="stats-section"><div class="wrap"><div class="stats-grid">${items}</div></div></section>`;
 }
 
-function renderGallery(images) {
+function renderGallery(images, copy) {
   if (!images.length) return "";
   const items = images.map(img => `<div class="gal-item sr-scale">
   <img src="${img.url}" alt="${img.alt || img.caption || "Foto"}" loading="lazy">
@@ -160,15 +160,28 @@ function renderGallery(images) {
   return `<section class="gallery-section" id="galeria">
 <div class="wrap">
   <div class="sh sr-fade">
-    <div class="section-label">Galeria</div>
-    <h2 class="section-title">Nosso Espaço</h2>
+    <div class="section-label">${copy.labelGallery}</div>
+    <h2 class="section-title">${copy.titleGallery}</h2>
   </div>
   <div class="gal-grid">${items}</div>
 </div>
 </section>`;
 }
 
-function renderTestimonials(depoimentos) {
+// Avatar gradient palette — 8 pairs mapped by char code mod 8
+const AVATAR_GRADIENTS = [
+  ["#6366F1","#8B5CF6"], ["#EC4899","#F43F5E"], ["#0EA5E9","#06B6D4"],
+  ["#10B981","#34D399"], ["#F59E0B","#FBBF24"], ["#8B5CF6","#A78BFA"],
+  ["#EF4444","#F97316"], ["#3B82F6","#6366F1"],
+];
+
+function avatarGradient(name) {
+  const idx = (name.charCodeAt(0) || 0) % AVATAR_GRADIENTS.length;
+  const [a, b] = AVATAR_GRADIENTS[idx];
+  return `background:linear-gradient(135deg,${a},${b})`;
+}
+
+function renderTestimonials(depoimentos, copy) {
   if (!depoimentos || !depoimentos.length) return "";
   const cards = depoimentos.slice(0, 3).map(d => {
     const nome  = d.nome  || d.name  || "Cliente";
@@ -177,7 +190,7 @@ function renderTestimonials(depoimentos) {
   <div class="testi-quote">"</div>
   <p class="testi-text">${texto}</p>
   <div class="testi-author">
-    <div class="testi-avatar">${nome.charAt(0).toUpperCase()}</div>
+    <div class="testi-avatar" style="${avatarGradient(nome)}">${nome.charAt(0).toUpperCase()}</div>
     <div><div class="testi-name">${nome}</div><div class="stars">★★★★★</div></div>
   </div>
 </div>`;
@@ -185,8 +198,8 @@ function renderTestimonials(depoimentos) {
   return `<section class="testimonials-section" id="depoimentos">
 <div class="wrap">
   <div class="sh sr-fade">
-    <div class="section-label">Depoimentos</div>
-    <h2 class="section-title">O Que Dizem Nossos Clientes</h2>
+    <div class="section-label">${copy.labelTestimonials}</div>
+    <h2 class="section-title">${copy.titleTestimonials}</h2>
   </div>
   <div class="testi-grid">${cards}</div>
 </div>
@@ -241,6 +254,7 @@ function renderProducts(products, d) {
 
 export function buildHTML(site) {
   const d         = getDesign(site.niche);
+  const copy      = getNicheCopy(site.niche, site.city);
   const p         = d.palette;
   const flat      = site.site_content ?? {};
   const wa        = waLink(site.phone, site.business_name);
@@ -455,19 +469,19 @@ export function buildHTML(site) {
   </div>
 </section>
 
-${location ? `<div class="proof-bar"><p>📍 ${location} &nbsp;·&nbsp; ${site.niche} &nbsp;·&nbsp; Atendimento especializado</p></div>` : ""}
+${location ? `<div class="proof-bar"><p>${copy.proofBar.replace("{city}", location)}</p></div>` : ""}
 
 ${stats.length > 0 ? renderStats(stats) : ""}
 
-${svcItems.length > 0 ? renderServices(svcItems, d) : ""}
+${svcItems.length > 0 ? renderServices(svcItems, d, copy) : ""}
 
 ${hasProducts ? renderProducts(site.products, d) : ""}
 
-${galleryImgs.length > 0 ? renderGallery(galleryImgs) : ""}
+${galleryImgs.length > 0 ? renderGallery(galleryImgs, copy) : ""}
 
 ${hasDiffs ? renderDiferenciais(flat.diferenciais) : ""}
 
-${renderTestimonials(richTestis)}
+${renderTestimonials(richTestis, copy)}
 
 ${hasAbout ? `<section class="about-section" id="sobre">
 <div class="wrap">
@@ -481,8 +495,8 @@ ${hasAbout ? `<section class="about-section" id="sobre">
 
 <section class="cta-section" id="contato">
   <div class="wrap">
-    <h2 class="sr-up">Pronto para começar?</h2>
-    <p class="sr-up">Entre em contato agora pelo WhatsApp. Rápido, sem burocracia, sem espera.</p>
+    <h2 class="sr-up">${copy.ctaHeadline}</h2>
+    <p class="sr-up">${copy.ctaBody}</p>
     <a class="btn btn-wa btn-wa-cta sr-up" href="${wa}" target="_blank" rel="noopener noreferrer">${WA_SVG} Falar no WhatsApp Agora</a>
     ${location ? `<div class="cta-note sr-up">📍 ${location} · Atendemos você hoje</div>` : ""}
   </div>
@@ -493,7 +507,6 @@ ${hasAbout ? `<section class="about-section" id="sobre">
   <p>${site.niche}${location ? ` · ${location}` : ""}</p>
   ${site.phone ? `<p><a href="${wa}" target="_blank" rel="noopener">📱 ${site.phone}</a></p>` : ""}
   ${flat.contact_email ? `<p>✉️ ${flat.contact_email}</p>` : ""}
-  <div class="footer-credit">Site criado com ForgeSites AI</div>
 </footer>
 
 <a class="wa-float" href="${wa}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">${WA_SVG}</a>
