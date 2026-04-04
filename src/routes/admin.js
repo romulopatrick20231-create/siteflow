@@ -29,6 +29,7 @@
  *
  * ── Generation ─────────────────────────────────────────────────────────────
  * POST  /admin/generate-batch         — generate sites in bulk { leads[], generateImages? }
+ * POST  /admin/generate-single        — generate one site for existing user { userId, businessName, ... }
  */
 
 import { Router }        from "express";
@@ -54,7 +55,7 @@ import {
   adminDisableSite,
   adminEnableSite,
 } from "../saas/admin.js";
-import { buildSitesV2 } from "../saas/siteBuilderV2.js";
+import { buildSitesV2, buildSiteForUser } from "../saas/siteBuilderV2.js";
 import { NotFoundError, ValidationError, BusinessError } from "../utils/errors.js";
 import logger from "../utils/logger.js";
 
@@ -96,6 +97,27 @@ const siteStripeSchema  = Joi.object({
   delivery_fee_per_km: Joi.number().min(0).max(999).allow(null),
   currency:            Joi.string().length(3).lowercase().allow(null),
 }).min(1);
+
+// Single site generation for existing user
+const generateSingleSchema = Joi.object({
+  userId:       Joi.string().uuid({ version: "uuidv4" }).required(),
+  businessName: Joi.string().max(150).trim().required(),
+  niche:        Joi.string().valid(
+    "Clínica Odontológica", "Clínica Médica", "Clínica de Fisioterapia",
+    "Consultório de Nutrição", "Clínica Veterinária", "Farmácia",
+    "Salão de Beleza", "Barbearia", "Clínica de Estética",
+    "Restaurante", "Pizzaria", "Padaria", "Hamburgueria",
+    "Escritório de Advocacia", "Escritório de Contabilidade", "Imobiliária",
+    "Academia / Studio Fitness", "Escola / Curso", "Oficina Mecânica",
+    "Negócio Local"
+  ).default("Negócio Local"),
+  city:         Joi.string().max(100).trim().allow("", null),
+  phone:        Joi.string().max(20).trim().allow("", null),
+  address:      Joi.string().max(300).trim().allow("", null),
+  neighborhood: Joi.string().max(100).trim().allow("", null),
+  email:        Joi.string().email().max(200).allow("", null),
+  skipAI:       Joi.boolean().default(false),
+});
 
 // Batch generation schema
 const VALID_NICHES = [
@@ -496,6 +518,46 @@ router.post(
               userId:      r.user.id,
             }
       ),
+    }, 201);
+  })
+);
+
+// ── POST /admin/generate-single ───────────────────────────────────────────────
+// Generate a complete site for an existing user (no new Supabase user created).
+// Credits are NOT deducted — admin-privileged action.
+// Body: { userId, businessName, niche?, city?, phone?, address?, neighborhood?, email?, skipAI? }
+router.post(
+  "/generate-single",
+  validate(generateSingleSchema),
+  asyncHandler(async (req, res) => {
+    const { userId, ...lead } = req.body;
+
+    // Verify the target user exists
+    const user = await getUser(userId);
+    if (!user) throw new NotFoundError("User");
+
+    logger.info("Admin generate-single started", {
+      adminId:      req.userId,
+      targetUserId: userId,
+      businessName: lead.businessName,
+      niche:        lead.niche,
+    });
+
+    const { site, siteJson } = await buildSiteForUser(userId, lead);
+
+    logger.info("Admin generate-single complete", {
+      adminId:      req.userId,
+      targetUserId: userId,
+      siteId:       site.id,
+    });
+
+    send(res, {
+      id:     site.id,
+      name:   lead.businessName,
+      status: "draft",
+      url:    null,
+      niche:  siteJson.niche,
+      userId,
     }, 201);
   })
 );

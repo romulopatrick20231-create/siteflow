@@ -261,6 +261,50 @@ export async function buildSiteV2(lead) {
 }
 
 /**
+ * Build a single site for an EXISTING user (no user creation).
+ * Used by POST /admin/generate-single to attach a site to a specific userId.
+ * Credits are NOT deducted — this is an admin-privileged action.
+ *
+ * @param {string} userId  — existing Supabase auth user ID
+ * @param {Object} lead    — same shape as buildSiteV2 lead (businessName required)
+ * @returns {Promise<{ site, siteJson }>}
+ */
+export async function buildSiteForUser(userId, lead) {
+  if (!lead.businessName) throw new Error("businessName is required");
+
+  logger.info("buildSiteForUser start", { userId, businessName: lead.businessName, niche: lead.niche });
+
+  // 1. AI content generation
+  let nicheContent = { meta: {}, pages: [] };
+  if (!lead.skipAI) {
+    try {
+      nicheContent = await generateNicheContent(lead);
+    } catch (err) {
+      logger.warn("Niche content generation failed, continuing with empty pages", { error: err.message });
+    }
+  }
+
+  // 2. Pexels image enrichment
+  const pexelsEnabled = !!process.env.PEXELS_API_KEY && lead.skipPexels !== true;
+  if (pexelsEnabled && nicheContent.pages?.length) {
+    try {
+      const category = getNicheCategory(lead.niche || "Negócio Local");
+      nicheContent.pages = await enrichContentWithImages(nicheContent.pages, category, nicheContent.meta);
+    } catch (err) {
+      logger.warn("Pexels enrichment failed, continuing without item images", { error: err.message });
+    }
+  }
+
+  // 3. Assemble + save (skip DALL-E — off by default for single admin generation)
+  const siteJson = assembleSiteJson({ lead, nicheContent, images: [] });
+  const site     = await saveSite(userId, lead, siteJson);
+
+  logger.info("buildSiteForUser complete", { siteId: site.id, userId });
+
+  return { site: { ...site, content: siteJson }, siteJson };
+}
+
+/**
  * Build multiple sites concurrently (max 3 at a time).
  *
  * @param {Object[]} leads
