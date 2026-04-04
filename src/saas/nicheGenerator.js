@@ -65,6 +65,16 @@ DADOS REAIS:
 - Bairro/Região: ${bairro}
 - Telefone: ${lead.phone || "não informado"}
 - Endereço: ${lead.address || "não informado"}
+${lead.placesData ? `
+DADOS DO GOOGLE (USE ESTES — são reais, não invente outros):
+- Avaliação real: ${lead.placesData.rating} ⭐ (${lead.placesData.totalRatings?.toLocaleString("pt-BR")} avaliações)
+- Endereço confirmado: ${lead.placesData.address || "—"}
+${lead.placesData.hours ? `- Horários reais: ${JSON.stringify(lead.placesData.hours)}` : ""}
+${lead.placesData.reviews?.length ? `- Avaliações reais de clientes (use como inspiração para depoimentos):
+${lead.placesData.reviews.map((r, i) => `  ${i + 1}. "${r.texto}" — ${r.nome} (${r.rating}★)`).join("\n")}` : ""}
+
+IMPORTANTE: Use a avaliação real (${lead.placesData.rating}★ com ${lead.placesData.totalRatings} avaliações) nos invented_stats.
+Os depoimentos devem ser inspirados nos textos reais acima — mesma linguagem, mesma especificidade.` : ""}
 
 ÂNGULO NARRATIVO A USAR: ${narrativeAngle.prompt}
 

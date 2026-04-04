@@ -22,6 +22,7 @@ import { generateNicheImages }     from "./imageGenerator.js";
 import { getNicheCategory }        from "./nicheSchema.js";
 import { generateVisualConfig }    from "./visual/index.js";
 import { enrichContentWithImages } from "./contentImageEnricher.js";
+import { enrichLeadWithPlaces }    from "../services/googlePlacesService.js";
 import { getAdminClient }          from "./db.js";
 import logger from "../utils/logger.js";
 
@@ -97,6 +98,9 @@ function assembleSiteJson({ lead, nicheContent, images }) {
       city:    lead.city     || null,
       address: lead.address  || null,
     },
+    // Google Places real data — persisted so htmlBuilder can use photos + rating
+    placesData:   lead.placesData   || null,
+    placesPhotos: lead.placesData?.photos || [],
     meta: publicMeta,
     generation: {
       personality:    generation.personality    || null,
@@ -175,6 +179,9 @@ export async function buildSiteV2(lead) {
   if (!lead.businessName) throw new Error("businessName is required");
 
   logger.info("buildSiteV2 start", { businessName: lead.businessName, niche: lead.niche });
+
+  // 0. Enrich lead with real Google Places data (rating, hours, photos, reviews)
+  lead = await enrichLeadWithPlaces(lead);
 
   // 1. Generate niche-specific content via AI (two-phase: identity → content)
   let nicheContent = { meta: {}, pages: [] };
@@ -272,6 +279,9 @@ export async function buildSiteForUser(userId, lead) {
   if (!lead.businessName) throw new Error("businessName is required");
 
   logger.info("buildSiteForUser start", { userId, businessName: lead.businessName, niche: lead.niche });
+
+  // 0. Enrich lead with real Google Places data
+  lead = await enrichLeadWithPlaces(lead);
 
   // 1. AI content generation
   let nicheContent = { meta: {}, pages: [] };

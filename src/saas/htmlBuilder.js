@@ -35,6 +35,11 @@ function getHeroImages(site) {
       imgs.push(img.public_url || img.url);
     }
   }
+  // 2. Google Places photos (real business photos — highest priority after uploads)
+  for (const url of (site.content?.placesPhotos || [])) {
+    if (url && !imgs.includes(url)) imgs.push(url);
+    if (imgs.length >= 5) break;
+  }
   // 2. Gallery images (already objects)
   const gallery = findSection(site, ["image_gallery", "image_grid"]);
   for (const img of (gallery?.data?.images || [])) {
