@@ -258,8 +258,9 @@ function avatarGradient(name) {
   return `background:linear-gradient(135deg,${a},${b})`;
 }
 
-function renderTestimonials(depoimentos, copy) {
+function renderTestimonials(depoimentos, copy, isDark) {
   if (!depoimentos || !depoimentos.length) return "";
+  const darkClass = isDark ? " testimonials-dark" : "";
   const cards = depoimentos.slice(0, 3).map(d => {
     const nome  = d.nome  || d.name  || "Cliente";
     const texto = d.texto || d.text  || d.quote  || "";
@@ -272,7 +273,7 @@ function renderTestimonials(depoimentos, copy) {
   </div>
 </div>`;
   }).join("");
-  return `<section class="testimonials-section" id="depoimentos">
+  return `<section class="testimonials-section${darkClass}" id="depoimentos">
 <div class="wrap">
   <div class="sh sr-fade">
     <div class="section-label">${copy.labelTestimonials}</div>
@@ -333,8 +334,9 @@ function renderHighlightBar(data) {
   return `<div class="highlight-bar"><div class="highlight-items">${items}</div></div>`;
 }
 
-function renderMenuFull(menuData, copy, wa) {
+function renderMenuFull(menuData, copy, wa, isDark) {
   if (!menuData.hasMenu) return "";
+  const darkClass = isDark ? " menu-section-dark" : "";
   const parts = [];
 
   // Featured dishes
@@ -400,7 +402,7 @@ function renderMenuFull(menuData, copy, wa) {
 
   if (!parts.length) return "";
 
-  return `<section class="menu-section" id="cardapio">
+  return `<section class="menu-section${darkClass}" id="cardapio">
 <div class="wrap">${parts.join("")}</div>
 </section>`;
 }
@@ -624,8 +626,9 @@ export function buildHTML(site) {
     a{color:inherit;text-decoration:none}
     .wrap{max-width:1160px;margin:0 auto;padding:0 24px}
     section{padding:96px 24px}
-    .section-label{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);margin-bottom:12px}
-    .section-title{font-size:clamp(26px,4vw,44px);font-weight:800;line-height:1.15;letter-spacing:-.025em;margin-bottom:16px}
+    .section-label{display:inline-flex;align-items:center;gap:10px;font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--primary);margin-bottom:16px}
+    .section-label::before{content:"";width:28px;height:2px;background:var(--primary);flex-shrink:0}
+    .section-title{font-size:clamp(30px,4.5vw,56px);font-weight:800;line-height:1.08;letter-spacing:-.03em;margin-bottom:16px}
     .sh{margin-bottom:56px}
     /* ── Buttons ── */
     .btn{display:inline-flex;align-items:center;gap:9px;font-family:var(--font-b);font-size:15px;font-weight:700;border:none;cursor:pointer;border-radius:12px;padding:15px 30px;transition:transform .18s ease,box-shadow .18s ease;text-decoration:none;white-space:nowrap}
@@ -649,25 +652,56 @@ export function buildHTML(site) {
     .hero-orb-2{width:400px;height:400px;bottom:-150px;right:-100px;background:radial-gradient(circle,rgba(255,255,255,.05) 0%,transparent 70%)}
     .hero-inner{position:relative;z-index:3;max-width:820px;margin:0 auto;padding:120px 24px 96px}
     .hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.25);border-radius:100px;padding:7px 20px;font-size:13px;font-weight:600;color:#fff;margin-bottom:32px;backdrop-filter:blur(8px)}
-    .hero h1{font-size:clamp(32px,6vw,68px);font-weight:900;line-height:1.08;letter-spacing:-.03em;margin-bottom:24px;color:#fff;overflow:hidden}
+    .hero h1{font-size:clamp(48px,8vw,100px);font-weight:900;line-height:.97;letter-spacing:-.025em;margin-bottom:24px;color:#fff;overflow:hidden;text-transform:uppercase}
     .hero p{font-size:clamp(16px,2.2vw,20px);color:rgba(255,255,255,.82);max-width:580px;margin:0 auto 44px;font-family:var(--font-b)}
     .hero-btns{display:flex;gap:16px;justify-content:center;flex-wrap:wrap}
-    .btn-wa-hero{font-size:17px;padding:20px 40px;border-radius:14px}
+    .btn-wa-hero{font-size:16px;padding:18px 36px;border-radius:12px}
+    .hero-food .btn-wa-hero{font-size:17px;padding:20px 44px;border-radius:12px;letter-spacing:.02em}
+    /* ── Food hero split layout ── */
+    .hero-food{background:#0D0D0D}
+    .hero-food .hero-gradient{background:linear-gradient(to right,rgba(0,0,0,.98) 0%,rgba(0,0,0,.93) 38%,rgba(0,0,0,.65) 62%,rgba(0,0,0,.12) 100%)}
+    .hero-food .hero-slide.active{opacity:.18}
+    .hero-food-inner{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;max-width:1240px;margin:0 auto;padding:136px 48px 100px;position:relative;z-index:3}
+    .hero-text-left{text-align:left}
+    .hero-text-left h1{font-size:clamp(60px,9.5vw,124px);color:#fff;line-height:.9;letter-spacing:-.015em;text-transform:uppercase;margin-bottom:18px;text-align:left;font-weight:900;overflow:hidden}
+    .hero-text-left p{text-align:left;max-width:460px;margin:0 0 40px;font-size:17px;line-height:1.65}
+    .hero-text-left .hero-btns{justify-content:flex-start}
+    .hero-food-side{position:relative;display:flex;align-items:center;justify-content:center;min-height:460px}
+    .hero-food-glow{position:absolute;width:500px;height:500px;border-radius:50%;background:radial-gradient(circle,rgba(189,31,23,.3) 0%,rgba(189,31,23,.08) 48%,transparent 70%);pointer-events:none;animation:glow-breathe 4.5s ease-in-out infinite}
+    .hero-food-img-wrap{position:relative;z-index:1;width:420px;height:420px;border-radius:50%;overflow:hidden;box-shadow:0 0 90px rgba(189,31,23,.38),0 52px 100px rgba(0,0,0,.85);animation:food-float 5.5s ease-in-out infinite}
+    .hero-food-img{width:100%;height:100%;object-fit:cover}
+    .hero-food-no-img{width:420px;height:420px;border-radius:50%;background:radial-gradient(circle,rgba(189,31,23,.38),rgba(13,13,13,.9));display:flex;align-items:center;justify-content:center;font-size:130px;animation:food-float 5.5s ease-in-out infinite;box-shadow:0 0 90px rgba(189,31,23,.35),0 52px 100px rgba(0,0,0,.85)}
+    .hero-food-ring{position:absolute;inset:-16px;border-radius:50%;border:1.5px solid rgba(189,31,23,.55);animation:ring-pulse 3.5s ease-in-out infinite;z-index:2;pointer-events:none}
+    .hero-food-ring-2{position:absolute;inset:-36px;border-radius:50%;border:1px solid rgba(189,31,23,.2);animation:ring-pulse 3.5s ease-in-out infinite .85s;z-index:2;pointer-events:none}
+    @keyframes food-float{0%,100%{transform:translateY(0) rotate(-2.5deg) scale(1)}50%{transform:translateY(-24px) rotate(2.5deg) scale(1.02)}}
+    @keyframes ring-pulse{0%,100%{opacity:.3;transform:scale(1)}50%{opacity:.85;transform:scale(1.06)}}
+    @keyframes glow-breathe{0%,100%{transform:scale(1);opacity:.75}50%{transform:scale(1.14);opacity:1}}
+    @media(max-width:960px){.hero-food-inner{grid-template-columns:1fr;padding:110px 28px 72px;text-align:center}.hero-text-left h1,.hero-text-left p,.hero-text-left .hero-btns{text-align:center}.hero-text-left p{margin-left:auto;margin-right:auto}.hero-text-left .hero-btns{justify-content:center}.hero-food-side{display:none}}
+    /* ── Dark nav ── */
+    .nav-dark{background:rgba(7,7,7,.93)!important;border-bottom:1px solid rgba(255,255,255,.07)!important}
+    .nav-dark .nav-brand{color:#fff}
+    .nav-dark .nav-link{color:rgba(255,255,255,.62)}
+    .nav-dark .nav-link:hover,.nav-dark .nav-link.active{background:rgba(255,255,255,.07);color:#fff}
+    .nav-dark .nav-hamburger{color:rgba(255,255,255,.8)}
+    .nav-mobile-dark{background:rgba(7,7,7,.97)!important;border-bottom:1px solid rgba(255,255,255,.06)!important}
+    .nav-mobile-dark .nav-link{color:rgba(255,255,255,.75)}
+    .nav-mobile-dark .nav-link:hover{background:rgba(255,255,255,.06);color:#fff}
     /* ── Proof bar ── */
     .proof-bar{background:var(--muted);border-bottom:1px solid var(--bdr);padding:14px 24px;text-align:center}
     .proof-bar p{font-size:13px;font-weight:600;color:var(--fg);letter-spacing:.01em}
     /* ── Stats ── */
-    .stats-section{background:var(--primary);padding:72px 24px}
-    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:40px;text-align:center}
+    .stats-section{background:var(--primary);padding:80px 24px;position:relative;overflow:hidden}
+    .stats-section::before{content:"";position:absolute;top:-1px;left:0;right:0;height:64px;background:inherit;clip-path:polygon(0 0,100% 0,100% 100%,0 30%)}
+    .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:40px;text-align:center;position:relative;z-index:1}
     .stat-item{color:#fff}
-    .stat-value{font-family:var(--font-h);font-size:clamp(40px,5vw,64px);font-weight:900;line-height:1;letter-spacing:-.03em;margin-bottom:8px}
-    .stat-label{font-size:14px;font-weight:600;opacity:.85;text-transform:uppercase;letter-spacing:.08em}
-    .stat-ctx{font-size:13px;opacity:.65;margin-top:6px;max-width:180px;margin-left:auto;margin-right:auto}
+    .stat-value{font-family:var(--font-h);font-size:clamp(48px,6vw,80px);font-weight:900;line-height:1;letter-spacing:-.03em;margin-bottom:8px}
+    .stat-label{font-size:13px;font-weight:700;opacity:.8;text-transform:uppercase;letter-spacing:.1em}
+    .stat-ctx{font-size:12px;opacity:.58;margin-top:6px;max-width:180px;margin-left:auto;margin-right:auto}
     /* ── Services ── */
     .services-section{background:#fff}
     .svc-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:28px}
     .svc-card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);transition:transform .25s ease,box-shadow .25s ease;will-change:transform}
-    .svc-card:hover{box-shadow:var(--shl)}
+    .svc-card:hover{box-shadow:0 20px 64px rgba(0,0,0,.18),0 0 0 1.5px var(--primary)}
     .svc-img-wrap{position:relative;overflow:hidden;height:200px}
     .svc-img{width:100%;height:100%;object-fit:cover;transition:transform .5s ease}
     .svc-card:hover .svc-img{transform:scale(1.06)}
@@ -697,6 +731,14 @@ export function buildHTML(site) {
     .prod-price{font-size:20px;font-weight:800;color:var(--accent)}
     /* ── Testimonials ── */
     .testimonials-section{background:var(--bg)}
+    .testimonials-dark{background:#0a0a0a}
+    .testimonials-dark .section-label{color:var(--primary)}
+    .testimonials-dark .section-title{color:#fff}
+    .testimonials-dark .testi-card{background:#161616;border-color:rgba(255,255,255,.07)}
+    .testimonials-dark .testi-quote{color:rgba(255,255,255,.06)}
+    .testimonials-dark .testi-text{color:rgba(255,255,255,.78)}
+    .testimonials-dark .testi-name{color:#fff}
+    .testimonials-dark .testi-avatar{border:1.5px solid rgba(255,255,255,.12)}
     .testi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
     .testi-card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);padding:36px 32px;box-shadow:var(--sh);position:relative;overflow:hidden}
     .testi-quote{position:absolute;top:10px;left:20px;font-size:80px;line-height:1;color:var(--muted);font-family:Georgia,serif;pointer-events:none}
@@ -716,11 +758,12 @@ export function buildHTML(site) {
     .about-section{background:var(--bg)}
     .about-text{font-size:18px;line-height:1.85;max-width:760px;color:var(--txt)}
     /* ── CTA ── */
-    .cta-section{background:linear-gradient(145deg,var(--pd) 0%,var(--p) 100%);color:#fff;text-align:center}
-    .cta-section h2{font-size:clamp(28px,4vw,50px);font-weight:900;line-height:1.12;letter-spacing:-.025em;margin-bottom:18px}
-    .cta-section p{font-size:18px;opacity:.85;max-width:500px;margin:0 auto 40px;font-family:var(--font-b)}
-    .btn-wa-cta{font-size:18px;padding:22px 48px;border-radius:14px}
-    .cta-note{margin-top:24px;font-size:13px;opacity:.65;display:flex;align-items:center;justify-content:center;gap:6px}
+    .cta-section{background:linear-gradient(145deg,var(--pd) 0%,var(--p) 100%);color:#fff;text-align:center;position:relative;overflow:hidden}
+    .cta-section::before{content:"";position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Ccircle cx='30' cy='30' r='1'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");pointer-events:none}
+    .cta-section h2{font-size:clamp(32px,5vw,64px);font-weight:900;line-height:1.05;letter-spacing:-.025em;margin-bottom:18px;text-transform:uppercase;position:relative}
+    .cta-section p{font-size:18px;opacity:.82;max-width:500px;margin:0 auto 44px;font-family:var(--font-b);position:relative}
+    .btn-wa-cta{font-size:18px;padding:22px 52px;border-radius:12px;position:relative;letter-spacing:.02em}
+    .cta-note{margin-top:24px;font-size:13px;opacity:.6;display:flex;align-items:center;justify-content:center;gap:6px;position:relative}
     /* ── Footer ── */
     footer{background:#0A0F1E;color:#94A3B8;padding:48px 24px;text-align:center}
     .footer-brand{font-family:var(--font-h);font-size:19px;font-weight:800;color:#fff;margin-bottom:8px}
@@ -759,6 +802,21 @@ export function buildHTML(site) {
     .highlight-item{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;white-space:nowrap}
     /* ── Menu section ── */
     .menu-section{background:#fff}
+    .menu-section-dark{background:#0f0f0f;color:#fff}
+    .menu-section-dark .menu-cat-title{color:rgba(255,255,255,.85);border-bottom-color:rgba(255,255,255,.08)}
+    .menu-section-dark .menu-card{background:#1a1a1a;border-color:rgba(255,255,255,.07)}
+    .menu-section-dark .menu-card:hover{box-shadow:0 12px 40px rgba(0,0,0,.5),0 0 0 1.5px var(--primary)}
+    .menu-section-dark .menu-card-name{color:#fff}
+    .menu-section-dark .menu-card-desc{color:rgba(255,255,255,.5)}
+    .menu-section-dark .feat-card{background:#1a1a1a;border-color:rgba(255,255,255,.07)}
+    .menu-section-dark .feat-name{color:#fff}
+    .menu-section-dark .feat-desc{color:rgba(255,255,255,.5)}
+    .menu-section-dark .menu-tab-btn{background:#1a1a1a;border-color:rgba(255,255,255,.1);color:rgba(255,255,255,.55)}
+    .menu-section-dark .menu-tab-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+    .menu-section-dark .section-label{color:var(--primary)}
+    .menu-section-dark .section-title{color:#fff}
+    .menu-section-dark .feat-price{color:var(--accent)}
+    .menu-section-dark .menu-price{color:var(--accent)}
     .menu-tabs-wrap{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:40px;scrollbar-width:none}
     .menu-tabs-wrap::-webkit-scrollbar{display:none}
     .menu-tab-btn{flex-shrink:0;padding:9px 22px;border-radius:100px;border:2px solid var(--bdr);background:#fff;font-size:13px;font-weight:700;color:var(--muted-fg);cursor:pointer;transition:all .18s;white-space:nowrap}
@@ -785,7 +843,7 @@ export function buildHTML(site) {
     /* ── Featured dishes ── */
     .featured-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px;margin-bottom:48px}
     .feat-card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);transition:box-shadow .2s,transform .2s}
-    .feat-card:hover{box-shadow:var(--shl);transform:translateY(-3px)}
+    .feat-card:hover{box-shadow:0 24px 72px rgba(0,0,0,.22),0 0 0 1.5px var(--primary);transform:translateY(-5px)}
     .feat-img{width:100%;height:200px;object-fit:cover;transition:transform .5s}
     .feat-card:hover .feat-img{transform:scale(1.05)}
     .feat-no-img{height:200px;display:flex;align-items:center;justify-content:center;font-size:52px;background:var(--muted)}
@@ -913,7 +971,7 @@ export function buildHTML(site) {
 <div class="cursor-dot"></div>
 <div class="cursor-ring"></div>
 
-<nav class="nav">
+<nav class="nav${isRestaurante ? " nav-dark" : ""}">
   <span class="nav-brand">
     ${logoImg ? `<img src="${logoImg.public_url || logoImg.url}" alt="${site.business_name}" class="nav-logo">` : ""}
     ${site.business_name}
@@ -928,11 +986,36 @@ export function buildHTML(site) {
     <a class="btn btn-wa nav-cta" href="${wa}" target="_blank" rel="noopener noreferrer">${WA_SVG} WhatsApp</a>
   </div>
 </nav>
-<div class="nav-mobile" id="nav-mobile">
+<div class="nav-mobile${isRestaurante ? " nav-mobile-dark" : ""}" id="nav-mobile">
   ${navLinks}
 </div>
 
-<section class="hero">
+${isRestaurante ? `
+<section class="hero hero-food" id="inicio">
+  ${heroImgs.length > 1 ? `<div class="hero-slides">${heroImgs.slice(1).map((url,i) => `<div class="hero-slide${i===0?" active":""}" style="background-image:url('${url}')"></div>`).join("")}</div>` : ""}
+  <div class="hero-gradient" data-parallax></div>
+  <div class="hero-food-inner">
+    <div class="hero-text-left">
+      <div class="hero-badge"><span>${d.emoji}</span><span>${site.niche}${location ? ` · ${location}` : ""}</span></div>
+      <h1 data-split-words>${headline}</h1>
+      <p>${heroCopy}</p>
+      <div class="hero-btns">
+        <a class="btn btn-wa btn-wa-hero" href="${wa}" target="_blank" rel="noopener noreferrer">${WA_SVG} Fazer Pedido</a>
+        <a class="btn btn-ghost" href="#cardapio">Ver Cardápio ↓</a>
+      </div>
+    </div>
+    <div class="hero-food-side">
+      <div class="hero-food-glow"></div>
+      ${heroImgs[0]
+        ? `<div class="hero-food-img-wrap"><img src="${heroImgs[0]}" alt="${site.business_name}" class="hero-food-img" loading="eager"></div>`
+        : `<div class="hero-food-no-img">${d.emoji}</div>`}
+      <div class="hero-food-ring"></div>
+      <div class="hero-food-ring-2"></div>
+    </div>
+  </div>
+</section>
+` : `
+<section class="hero" id="inicio">
   ${heroImgs.length > 0 ? `<div class="hero-slides">${heroBackground}</div>` : ""}
   <div class="hero-gradient" data-parallax></div>
   <div class="hero-orb hero-orb-1"></div>
@@ -947,6 +1030,7 @@ export function buildHTML(site) {
     </div>
   </div>
 </section>
+`}
 
 ${location ? `<div class="proof-bar"><p>${copy.proofBar.replace("{city}", location)}</p></div>` : ""}
 
@@ -954,7 +1038,7 @@ ${highlightData ? renderHighlightBar(highlightData) : ""}
 
 ${stats.length > 0 ? renderStats(stats) : ""}
 
-${menuData.hasMenu ? renderMenuFull(menuData, copy, wa) : svcItems.length > 0 ? renderServices(svcItems, d, copy) : ""}
+${menuData.hasMenu ? renderMenuFull(menuData, copy, wa, isRestaurante) : svcItems.length > 0 ? renderServices(svcItems, d, copy) : ""}
 
 ${imoveisData?.length ? renderImoveisFull(imoveisData, copy, wa, site.business_name) : ""}
 
@@ -966,7 +1050,7 @@ ${galleryImgs.length > 0 ? renderGallery(galleryImgs, copy) : ""}
 
 ${hasDiffs ? renderDiferenciais(flat.diferenciais) : ""}
 
-${renderTestimonials(richTestis, copy)}
+${renderTestimonials(richTestis, copy, isRestaurante)}
 
 ${hasAbout ? `<section class="about-section" id="sobre">
 <div class="wrap">

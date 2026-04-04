@@ -146,12 +146,14 @@ const SITE_JS = `
 
   // ── Hero image slider ────────────────────────────────────────────────────
   var slides = document.querySelectorAll(".hero-slide");
+  var isFood = !!document.querySelector(".hero-food");
+  var slideOpacity = isFood ? 0.18 : 0.65;
   if (slides.length > 1) {
     var cur = 0;
     setInterval(function () {
       gsap.to(slides[cur], { opacity: 0, duration: 1.2, ease: "power2.inOut" });
       cur = (cur + 1) % slides.length;
-      gsap.to(slides[cur], { opacity: 0.45, duration: 1.2, ease: "power2.inOut" });
+      gsap.to(slides[cur], { opacity: slideOpacity, duration: 1.2, ease: "power2.inOut" });
     }, 4500);
   }
 
