@@ -203,7 +203,7 @@ export async function listAllSites({ limit = 100, offset = 0, status, search } =
   const db = getAdminClient();
   let query = db
     .from("sites")
-    .select("id, user_id, slug, business_name, niche, status, site_url, publish_count, last_published_at, created_at")
+    .select("id, user_id, slug, business_name, niche, status, site_url, publish_count, last_published_at, created_at, stripe_account_id, checkout_enabled, delivery_fee_fixed, delivery_fee_per_km, currency")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -213,6 +213,20 @@ export async function listAllSites({ limit = 100, offset = 0, status, search } =
   const { data, error } = await query;
   if (error) throw new Error(`listAllSites: ${error.message}`);
   return data ?? [];
+}
+
+/**
+ * Update Stripe / checkout settings for a site.
+ * @param {string} siteId
+ * @param {object} fields — subset of { stripe_account_id, checkout_enabled, delivery_fee_fixed, delivery_fee_per_km, currency }
+ */
+export async function updateSiteStripe(siteId, fields) {
+  const db = getAdminClient();
+  const { error } = await db
+    .from("sites")
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq("id", siteId);
+  if (error) throw new Error(`updateSiteStripe: ${error.message}`);
 }
 
 /**

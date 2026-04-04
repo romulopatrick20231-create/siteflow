@@ -25,6 +25,7 @@
  * POST  /admin/enable-site            — enable  site (body: { siteId })
  *
  * PATCH /admin/sites/:id/status       — force-set any status { status }
+ * PUT   /admin/sites/:id/stripe       — set Stripe/checkout config { stripe_account_id, checkout_enabled, ... }
  *
  * ── Generation ─────────────────────────────────────────────────────────────
  * POST  /admin/generate-batch         — generate sites in bulk { leads[], generateImages? }
@@ -49,6 +50,7 @@ import {
   enableUser,
   listAllSites,
   setSiteStatus,
+  updateSiteStripe,
   adminDisableSite,
   adminEnableSite,
 } from "../saas/admin.js";
@@ -86,7 +88,14 @@ const creditsSchema = Joi.object({
   credits:           Joi.number().integer().min(0).max(99999),
   credits_remaining: Joi.number().integer().min(0).max(99999),
 }).or("amount", "credits", "credits_remaining");
-const statusSchema  = Joi.object({ status: Joi.string().valid("draft", "ready", "published", "archived", "disabled").required() });
+const statusSchema      = Joi.object({ status: Joi.string().valid("draft", "ready", "published", "archived", "disabled").required() });
+const siteStripeSchema  = Joi.object({
+  stripe_account_id:   Joi.string().max(100).allow("", null),
+  checkout_enabled:    Joi.boolean(),
+  delivery_fee_fixed:  Joi.number().min(0).max(9999).allow(null),
+  delivery_fee_per_km: Joi.number().min(0).max(999).allow(null),
+  currency:            Joi.string().length(3).lowercase().allow(null),
+}).min(1);
 
 // Batch generation schema
 const VALID_NICHES = [
@@ -420,6 +429,20 @@ router.patch(
     });
 
     send(res, result);
+  })
+);
+
+// ── PUT /admin/sites/:id/stripe ───────────────────────────────────────────────
+// Update Stripe / checkout settings for a site.
+// Body: { stripe_account_id?, checkout_enabled?, delivery_fee_fixed?, delivery_fee_per_km?, currency? }
+router.put(
+  "/sites/:id/stripe",
+  validate(siteStripeSchema),
+  asyncHandler(async (req, res) => {
+    const siteId = req.params.id;
+    await updateSiteStripe(siteId, req.body);
+    logger.info("Admin updated site Stripe settings", { adminId: req.userId, siteId, fields: Object.keys(req.body) });
+    send(res, { updated: true, siteId, ...req.body });
   })
 );
 
