@@ -50,10 +50,9 @@ function minifyHtml(html) {
   return html
     // 1. Strip HTML comments (<!-- … -->) — none are user-visible in this template
     .replace(/<!--[\s\S]*?-->/g, "")
-    // 2. Collapse runs of whitespace between tags to a single space
-    //    ("> <" → "><" is too aggressive; ">\n   <" → "> <" is safe)
-    .replace(/>\s{2,}</g, "> ")
-    .replace(/\s{2,}</g,  " <")
+    // 2. Collapse runs of whitespace between tags
+    .replace(/>\s+</g, "><")
+    .replace(/\s{2,}/g, " ")
     // 3. Collapse any remaining internal whitespace runs
     .replace(/\s{2,}/g, " ")
     .trim();
