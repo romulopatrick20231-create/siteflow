@@ -303,7 +303,7 @@ export const FLOW_VARIANTS = {
       id: "experience",
       pages: {
         "inicio":     ["hero_statement",    "highlight_bar"],
-        "cardapio":   ["menu_featured"],
+        "cardapio":   ["menu_featured",     "menu_categories"],
         "galeria":    ["image_gallery"],
         "localizacao":["location_hours"],
         "reservas":   ["steps_cta"],
@@ -314,7 +314,7 @@ export const FLOW_VARIANTS = {
       id: "food-first",
       pages: {
         "inicio":     ["hero",              "stats_showcase"],
-        "cardapio":   ["menu_categories"],
+        "cardapio":   ["menu_featured",     "menu_categories"],
         "galeria":    ["image_grid"],
         "localizacao":["location_hours"],
         "reservas":   ["booking_cta"],
@@ -325,7 +325,7 @@ export const FLOW_VARIANTS = {
       id: "tradition",
       pages: {
         "inicio":     ["hero_story",        "highlight_bar"],
-        "cardapio":   ["menu_categories"],
+        "cardapio":   ["menu_featured",     "menu_categories"],
         "galeria":    ["image_gallery"],
         "localizacao":["location_hours"],
         "reservas":   ["steps_cta"],

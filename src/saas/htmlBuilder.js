@@ -618,7 +618,7 @@ export function buildHTML(site) {
       --r:14px;--sh:0 2px 16px rgba(0,0,0,.08);--shl:0 12px 48px rgba(0,0,0,.18)
     }
     html{scroll-behavior:smooth}
-    body{font-family:var(--font-b);color:var(--txt);background:#fff;line-height:1.6;-webkit-font-smoothing:antialiased;cursor:none}
+    body{font-family:var(--font-b);color:var(--txt);background:#fff;line-height:1.6;-webkit-font-smoothing:antialiased}
     h1,h2,h3{font-family:var(--font-h)}
     img{display:block;max-width:100%}
     a{color:inherit;text-decoration:none}
@@ -628,7 +628,7 @@ export function buildHTML(site) {
     .section-title{font-size:clamp(26px,4vw,44px);font-weight:800;line-height:1.15;letter-spacing:-.025em;margin-bottom:16px}
     .sh{margin-bottom:56px}
     /* ── Buttons ── */
-    .btn{display:inline-flex;align-items:center;gap:9px;font-family:var(--font-b);font-size:15px;font-weight:700;border:none;cursor:none;border-radius:12px;padding:15px 30px;transition:transform .18s ease,box-shadow .18s ease;text-decoration:none;white-space:nowrap}
+    .btn{display:inline-flex;align-items:center;gap:9px;font-family:var(--font-b);font-size:15px;font-weight:700;border:none;cursor:pointer;border-radius:12px;padding:15px 30px;transition:transform .18s ease,box-shadow .18s ease;text-decoration:none;white-space:nowrap}
     .btn-wa{background:var(--wa);color:#fff;box-shadow:0 4px 24px rgba(37,211,102,.4)}
     .btn-wa:hover{background:var(--wad);transform:translateY(-2px);box-shadow:0 8px 32px rgba(37,211,102,.55)}
     .btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1.5px solid rgba(255,255,255,.35);backdrop-filter:blur(10px)}
@@ -642,7 +642,7 @@ export function buildHTML(site) {
     .hero{position:relative;min-height:100vh;display:flex;align-items:center;justify-content:center;text-align:center;overflow:hidden;padding:0}
     .hero-slides{position:absolute;inset:0;z-index:0}
     .hero-slide{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.2s ease}
-    .hero-slide.active{opacity:.45}
+    .hero-slide.active{opacity:.65}
     .hero-gradient{position:absolute;inset:0;background:linear-gradient(145deg,var(--pd) 0%,var(--p) 55%,color-mix(in srgb,var(--p) 65%,#000) 100%);z-index:1}
     .hero-orb{position:absolute;border-radius:50%;pointer-events:none;z-index:2}
     .hero-orb-1{width:600px;height:600px;top:-200px;left:-150px;background:radial-gradient(circle,rgba(255,255,255,.07) 0%,transparent 70%)}
@@ -828,6 +828,19 @@ export function buildHTML(site) {
     .cart-wa-btn:hover{background:var(--wad)}
     .cart-wa-btn:active{transform:scale(.98)}
     .cart-wa-btn:disabled{opacity:.5;cursor:default}
+    /* ── Cart delivery ── */
+    .cart-delivery{padding:16px 24px;border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr)}
+    .cart-delivery-label{font-size:12px;font-weight:700;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px}
+    .delivery-toggle{display:flex;gap:6px;margin-bottom:12px}
+    .delivery-type-btn{flex:1;padding:8px;border-radius:8px;border:2px solid var(--bdr);background:#fff;font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;color:var(--muted-fg)}
+    .delivery-type-btn.active{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+    .cart-cep-wrap{display:flex;gap:8px;margin-bottom:8px}
+    .cart-cep-input{flex:1;padding:9px 12px;border:1.5px solid var(--bdr);border-radius:8px;font-size:14px;font-family:var(--font-b);outline:none}
+    .cart-cep-input:focus{border-color:var(--primary)}
+    .cart-cep-btn{padding:9px 14px;border-radius:8px;background:var(--primary);color:var(--primary-fg);border:none;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
+    .cart-cep-btn:disabled{opacity:.6;cursor:default}
+    .cart-address-display{font-size:13px;color:var(--muted-fg);line-height:1.5;margin-bottom:8px;min-height:18px}
+    .cart-fee-row{display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--fg);padding:6px 0}
     /* ── Imóveis ── */
     .imoveis-section{background:#fff}
     .imoveis-top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:32px}
@@ -999,9 +1012,27 @@ ${locationData ? renderLocationHours(locationData, wa, site.business_name) : ""}
   <div class="cart-items" id="cart-items">
     <div class="cart-empty-msg">Seu carrinho está vazio.<br>Adicione itens do cardápio! 😊</div>
   </div>
+  <div class="cart-delivery" id="cart-delivery">
+    <div class="cart-delivery-label">Tipo de Entrega</div>
+    <div class="delivery-toggle">
+      <button class="delivery-type-btn active" data-dtype="retirada" onclick="CartSystem.setDelivery('retirada',this)">🏪 Retirar</button>
+      <button class="delivery-type-btn" data-dtype="delivery" onclick="CartSystem.setDelivery('delivery',this)">🛵 Delivery</button>
+    </div>
+    <div id="cart-cep-section" style="display:none">
+      <div class="cart-cep-wrap">
+        <input class="cart-cep-input" id="cart-cep" type="text" placeholder="CEP 00000-000" maxlength="9">
+        <button class="cart-cep-btn" id="cart-cep-btn" onclick="CartSystem.lookupCep()">Buscar</button>
+      </div>
+      <div class="cart-address-display" id="cart-address-display"></div>
+      <div class="cart-fee-row" id="cart-fee-row" style="display:none">
+        <span>Taxa de entrega</span>
+        <span id="cart-fee-val">R$ 8,00</span>
+      </div>
+    </div>
+  </div>
   <div class="cart-footer">
     <div class="cart-total-row">
-      <span class="cart-total-label">Total do Pedido</span>
+      <span class="cart-total-label">Total</span>
       <span class="cart-total-val" id="cart-total">R$ 0,00</span>
     </div>
     <button class="cart-wa-btn" id="cart-wa-btn" onclick="CartSystem.sendToWhatsApp()" disabled>

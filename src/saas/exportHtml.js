@@ -85,13 +85,18 @@ const SITE_JS = `
 
   // Guard — GSAP/Lenis may not have loaded if offline
   if (typeof gsap === "undefined" || typeof Lenis === "undefined") {
-    // Fallback: basic scroll + reveal without animations
     document.querySelectorAll(".sr-up,.sr-fade,.sr-scale").forEach(function (el) {
       el.style.opacity = "1";
       el.style.transform = "none";
     });
     return;
   }
+
+  // ── Cursor — activate only after JS loads ────────────────────────────────
+  document.body.style.cursor = "none";
+  document.querySelectorAll("button,a,.add-btn,.cart-float").forEach(function(el) {
+    el.style.cursor = "none";
+  });
 
   // ── Lenis smooth scroll ──────────────────────────────────────────────────
   var lenis = new Lenis({ lerp: 0.1, smoothWheel: true, touchMultiplier: 1.6 });
@@ -317,7 +322,10 @@ const SITE_JS = `
   }
 
   window.CartSystem = (function () {
-    var items = [];
+    var items        = [];
+    var deliveryType = "retirada";
+    var deliveryFee  = 0;
+    var deliveryAddr = "";
     var WA_HREF = (document.querySelector("a.btn-wa-hero") || {}).href || "";
     var BNAME   = document.title.split("—")[0].trim();
 
@@ -339,8 +347,9 @@ const SITE_JS = `
       var waBtn     = document.getElementById("cart-wa-btn");
       if (!container) return;
 
-      var total = items.reduce(function (s, i) { return s + i.qty * i.price; }, 0);
-      var count = items.reduce(function (s, i) { return s + i.qty; }, 0);
+      var subtotal = items.reduce(function (s, i) { return s + i.qty * i.price; }, 0);
+      var total    = subtotal + deliveryFee;
+      var count    = items.reduce(function (s, i) { return s + i.qty; }, 0);
 
       if (countEl) {
         countEl.textContent = count;
@@ -405,17 +414,63 @@ const SITE_JS = `
         document.getElementById("cart-overlay")?.classList.remove("open");
         document.body.style.overflow = "";
       },
+      setDelivery: function (type, btn) {
+        deliveryType = type;
+        document.querySelectorAll(".delivery-type-btn").forEach(function(b) { b.classList.remove("active"); });
+        if (btn) btn.classList.add("active");
+        var cepSection = document.getElementById("cart-cep-section");
+        if (cepSection) cepSection.style.display = type === "delivery" ? "block" : "none";
+        if (type === "retirada") {
+          deliveryFee  = 0;
+          deliveryAddr = "";
+          var feeRow = document.getElementById("cart-fee-row");
+          if (feeRow) feeRow.style.display = "none";
+        }
+        render();
+      },
+      lookupCep: function () {
+        var input = document.getElementById("cart-cep");
+        var btn   = document.getElementById("cart-cep-btn");
+        var disp  = document.getElementById("cart-address-display");
+        var feeRow = document.getElementById("cart-fee-row");
+        if (!input) return;
+        var cep = input.value.replace(/\D/g, "");
+        if (cep.length !== 8) { if (disp) disp.textContent = "CEP inválido."; return; }
+        if (btn) btn.disabled = true;
+        if (disp) disp.textContent = "Buscando...";
+        fetch("https://viacep.com.br/ws/" + cep + "/json/")
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            if (d.erro) { if (disp) disp.textContent = "CEP não encontrado."; return; }
+            deliveryAddr = d.logradouro + ", " + d.bairro + " — " + d.localidade + "/" + d.uf;
+            if (disp) disp.textContent = "📍 " + deliveryAddr;
+            deliveryFee = 8;
+            if (feeRow) { feeRow.style.display = "flex"; document.getElementById("cart-fee-val").textContent = fmt(deliveryFee); }
+            render();
+          })
+          .catch(function() { if (disp) disp.textContent = "Erro ao buscar CEP."; })
+          .finally(function() { if (btn) btn.disabled = false; });
+      },
       sendToWhatsApp: function () {
         if (!items.length) return;
-        var total = items.reduce(function (s, i) { return s + i.qty * i.price; }, 0);
+        var subtotal = items.reduce(function (s, i) { return s + i.qty * i.price; }, 0);
+        var total    = subtotal + deliveryFee;
         var lines = ["*Pedido — " + BNAME + "*", ""];
         items.forEach(function (item) {
-          lines.push("• " + item.name + " x" + item.qty + " — " + fmt(item.price * item.qty));
+          lines.push("• " + item.name + " ×" + item.qty + " — " + fmt(item.price * item.qty));
         });
+        lines.push("");
+        if (deliveryType === "delivery" && deliveryAddr) {
+          lines.push("🛵 *Delivery*");
+          lines.push("📍 " + deliveryAddr);
+          if (deliveryFee > 0) lines.push("Taxa de entrega: " + fmt(deliveryFee));
+        } else {
+          lines.push("🏪 *Retirada no local*");
+        }
         lines.push("");
         lines.push("*Total: " + fmt(total) + "*");
         lines.push("");
-        lines.push("Aguardo confirmação e prazo de entrega 🙏");
+        lines.push("Aguardo confirmação! 🙏");
         var msg = encodeURIComponent(lines.join("\n"));
         var base = WA_HREF ? WA_HREF.split("?")[0] : "https://wa.me/";
         window.open(base + "?text=" + msg, "_blank");

@@ -369,11 +369,18 @@ Ex: "Implante Dentário" → não fale de titânio e osseointegração — fale 
     },
 
     "menu_categories": {
-      briefing: `Menu dividido por categoria com preços realistas para o nicho e cidade.
-{ categories: [{ name, items: [{ name, description (1 frase apetitosa e específica), price, highlight: boolean }] }] }
-3 categorias: Entradas (2 itens), Pratos Principais (3 itens), Sobremesas (2 itens) — ou categorias específicas para o tipo de estabelecimento.
-Nomes dos pratos devem ser específicos ao nicho (Pizzaria → pizzas específicas, não "Pizza 1").
-Preços: use valores realistas para restaurante brasileiro de qualidade média-alta.`,
+      briefing: `Menu COMPLETO dividido por categorias específicas do nicho, com preços realistas para a cidade.
+{ categories: [{ name, items: [{ name, description (1 frase apetitosa e sensorial), price, highlight: boolean }] }] }
+
+CATEGORIAS OBRIGATÓRIAS POR NICHO (use EXATAMENTE estas, não invente genéricas):
+- Pizzaria: "Pizzas Tradicionais" (5 itens), "Pizzas Especiais da Casa" (4 itens), "Pizzas Doces" (3 itens), "Bebidas" (4 itens)
+- Hamburgueria: "Smash Burgers" (5 itens), "Combos" (3 itens), "Acompanhamentos" (3 itens), "Bebidas" (4 itens)
+- Padaria: "Pães Artesanais" (4 itens), "Salgados" (5 itens), "Doces e Bolos" (4 itens), "Cafés e Bebidas" (3 itens)
+- Restaurante: "Entradas" (3 itens), "Pratos Principais" (5 itens), "Sobremesas" (3 itens), "Bebidas" (4 itens)
+
+Nomes dos pratos: criativos e específicos. NÃO use "Pizza 1", "Burger Especial" — crie nomes reais.
+Preços: realistas para restaurante brasileiro de qualidade média-alta na cidade informada.
+Mínimo 4 categorias, mínimo 15 itens no total.`,
     },
 
     "menu_featured": {
