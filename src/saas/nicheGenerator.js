@@ -30,6 +30,7 @@ import {
   BANNED_PHRASES,
   pick,
 } from "./nicheSchema.js";
+import { getDesignBrief } from "./designKnowledge.js";
 
 let _openai = null;
 function getOpenAI() {
@@ -432,7 +433,13 @@ function buildContentPrompt(lead, identity, personality, flowVariant, category) 
     return `  Página "${page.name}":\n${sections}`;
   }).join("\n\n");
 
+  const designBrief = getDesignBrief(lead.niche || "Negócio Local");
+
   return `Você recebeu o briefing de um negócio específico e deve escrever o conteúdo completo do site.
+
+══════════════════════════════════════
+${designBrief}
+══════════════════════════════════════
 
 ══════════════════════════════════════
 BRIEFING DO NEGÓCIO
