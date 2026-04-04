@@ -34,6 +34,41 @@ import { NotFoundError, ValidationError, BusinessError } from "../utils/errors.j
 import logger from "../utils/logger.js";
 
 const router = Router();
+
+// ── PUBLIC: GET /sites/:id/products ───────────────────────────────────────
+// No auth — used by the published storefront to list products for checkout.
+// Only returns active products for sites that are not disabled.
+router.get("/:id/products", asyncHandler(async (req, res) => {
+  const db = getAdminClient();
+
+  const { data: site } = await db
+    .from("sites")
+    .select("id, status")
+    .eq("id", req.params.id)
+    .single();
+
+  if (!site || site.status === "disabled") throw new NotFoundError("Site");
+
+  const { data: products, error } = await db
+    .from("products")
+    .select("id, name, description, price, image_url, sort_order")
+    .eq("site_id", req.params.id)
+    .eq("is_active", true)
+    .order("sort_order", { ascending: true })
+    .order("created_at",  { ascending: true });
+
+  if (error) throw new Error(`getPublicProducts: ${error.message}`);
+
+  send(res, (products ?? []).map(p => ({
+    id:          p.id,
+    name:        p.name,
+    description: p.description,
+    price:       p.price,
+    imageUrl:    p.image_url,
+    sortOrder:   p.sort_order,
+  })));
+}));
+
 router.use(requireAuth);
 
 // ── GET /sites ─────────────────────────────────────────────────────────────

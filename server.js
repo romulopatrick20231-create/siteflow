@@ -39,8 +39,10 @@ import imagesRouter                     from "./src/routes/images.js";
 import aiRouter                         from "./src/routes/ai.js";
 import creditsRouter                    from "./src/routes/credits.js";
 import publishRouter                    from "./src/routes/publish.js";
-import billingRouter, { webhookRouter } from "./src/routes/billing.js";
-import domainRouter                     from "./src/routes/domain.js";
+import billingRouter, { webhookRouter }              from "./src/routes/billing.js";
+import checkoutRouter                                from "./src/routes/checkout.js";
+import { ecommerceWebhookRouter }                    from "./src/routes/webhookEcommerce.js";
+import domainRouter                                  from "./src/routes/domain.js";
 import adminRouter                      from "./src/routes/admin.js";
 import generateRouter                   from "./src/routes/generate.js";  // admin bulk generation (v1)
 import generateBatchRouter             from "./src/routes/generateBatch.js"; // niche-aware generation (v2)
@@ -83,10 +85,11 @@ app.use(cors({
   maxAge: 86400,
 }));
 
-// ── Stripe webhook — RAW body MUST come before express.json() ─────────────────
+// ── Stripe webhooks — RAW body MUST come before express.json() ────────────────
 // Stripe verifies the signature against the raw Buffer.
 // express.json() would consume the stream first and break verification.
-app.use("/stripe/webhook", webhookRouter);
+app.use("/stripe/webhook",  webhookRouter);          // subscription billing
+app.use("/webhook/stripe",  ecommerceWebhookRouter); // e-commerce purchases
 
 // ── Body parser ───────────────────────────────────────────────────────────────
 // 10mb limit: base64-encoded images via POST /images can approach 7-8 MB
@@ -130,8 +133,9 @@ app.use("/images",   imagesRouter);
 app.use("/ai",       aiRouter);
 app.use("/credits",  creditsRouter);
 app.use("/publish",  publishRouter);
-app.use("/billing",  billingRouter);
-app.use("/domain",   domainRouter);
+app.use("/billing",   billingRouter);
+app.use("/checkout",  checkoutRouter);
+app.use("/domain",    domainRouter);
 app.use("/admin",    adminRouter);
 app.use("/generate",       generateRouter);      // admin bulk generation (v1 — legacy)
 app.use("/generate-batch", generateBatchRouter); // niche-aware generation (v2)

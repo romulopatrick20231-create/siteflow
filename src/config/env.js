@@ -19,10 +19,11 @@ const OPTIONAL = {
   PORT:                    "3001",
   LOG_LEVEL:               "info",
   CORS_ORIGIN:             "*",
-  STRIPE_SECRET_KEY:       "",
-  STRIPE_WEBHOOK_SECRET:   "",
-  STRIPE_PRICE_BASIC:      "",
-  STRIPE_PRICE_PRO:        "",
+  STRIPE_SECRET_KEY:                "",
+  STRIPE_WEBHOOK_SECRET:            "",
+  STRIPE_ECOMMERCE_WEBHOOK_SECRET:  "",
+  STRIPE_PRICE_BASIC:               "",
+  STRIPE_PRICE_PRO:                 "",
   DOMAIN_PROVIDER:         "namecheap",         // namecheap | cloudflare
   NAMECHEAP_API_KEY:       "",
   NAMECHEAP_API_USER:      "",
@@ -74,10 +75,11 @@ export const env = {
   VERCEL_TEAM_ID:        process.env.VERCEL_TEAM_ID || null,
 
   // Stripe
-  STRIPE_SECRET_KEY:     process.env.STRIPE_SECRET_KEY,
-  STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
-  STRIPE_PRICE_BASIC:    process.env.STRIPE_PRICE_BASIC,
-  STRIPE_PRICE_PRO:      process.env.STRIPE_PRICE_PRO,
+  STRIPE_SECRET_KEY:                process.env.STRIPE_SECRET_KEY,
+  STRIPE_WEBHOOK_SECRET:            process.env.STRIPE_WEBHOOK_SECRET,
+  STRIPE_ECOMMERCE_WEBHOOK_SECRET:  process.env.STRIPE_ECOMMERCE_WEBHOOK_SECRET,
+  STRIPE_PRICE_BASIC:               process.env.STRIPE_PRICE_BASIC,
+  STRIPE_PRICE_PRO:                 process.env.STRIPE_PRICE_PRO,
 
   // Domain
   DOMAIN_PROVIDER:       process.env.DOMAIN_PROVIDER,
