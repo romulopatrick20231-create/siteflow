@@ -865,6 +865,8 @@ const NICHE_COPY = {
     ctaHeadline:        "Reserve Sua Mesa ou Peça Delivery",
     ctaBody:            "Reservas e pedidos pelo WhatsApp. Sabor de verdade, feito com ingredientes frescos.",
     proofBar:           "🍽️ Restaurante em {city} · Delivery e salão · Ingredientes frescos todo dia",
+    labelMenu:          "Cardápio",
+    labelCart:          "Meu Pedido",
   },
   "Pizzaria": {
     labelServices:      "Cardápio",
@@ -876,6 +878,8 @@ const NICHE_COPY = {
     ctaHeadline:        "Peça Agora pelo WhatsApp",
     ctaBody:            "Pizza quentinha na sua porta ou retire aqui. Massa artesanal, ingredientes selecionados.",
     proofBar:           "🍕 Pizzaria em {city} · Delivery rápido · Massa artesanal no forno a lenha",
+    labelMenu:          "Cardápio",
+    labelCart:          "Meu Pedido",
   },
   "Padaria": {
     labelServices:      "Produtos",
@@ -887,6 +891,8 @@ const NICHE_COPY = {
     ctaHeadline:        "Encomende Pelo WhatsApp",
     ctaBody:            "Bolos, salgados e pães artesanais feitos na hora. Encomendas para eventos também.",
     proofBar:           "🥐 Padaria em {city} · Produtos frescos todos os dias · Encomendas pelo WhatsApp",
+    labelMenu:          "Cardápio",
+    labelCart:          "Meu Pedido",
   },
   "Hamburgueria": {
     labelServices:      "Cardápio",
@@ -898,6 +904,8 @@ const NICHE_COPY = {
     ctaHeadline:        "Peça Agora — Delivery em Minutos",
     ctaBody:            "Blend exclusivo, pão artesanal e molhos autorais. Seu smash burger perfeito está aqui.",
     proofBar:           "🍔 Hamburgueria em {city} · Delivery rápido · Blend artesanal exclusivo",
+    labelMenu:          "Cardápio",
+    labelCart:          "Meu Pedido",
   },
   "Escritório de Advocacia": {
     labelServices:      "Áreas de Atuação",
@@ -931,6 +939,9 @@ const NICHE_COPY = {
     ctaHeadline:        "Encontre Seu Próximo Imóvel",
     ctaBody:            "Compra, venda e aluguel com total segurança jurídica. Seu imóvel ideal está aqui.",
     proofBar:           "🏠 Imobiliária em {city} · Compra, venda e aluguel · Assessoria completa",
+    labelImoveis:       "Imóveis",
+    labelComprar:       "Comprar",
+    labelAlugar:        "Alugar",
   },
   "Academia / Studio Fitness": {
     labelServices:      "Modalidades",
@@ -1001,6 +1012,11 @@ export function getNicheCopy(niche, city = "") {
     ctaHeadline:       resolve(c.ctaHeadline),
     ctaBody:           resolve(c.ctaBody),
     proofBar:          resolve(c.proofBar),
+    labelMenu:         c.labelMenu  || null,
+    labelCart:         c.labelCart  || null,
+    labelImoveis:      c.labelImoveis || null,
+    labelComprar:      c.labelComprar || null,
+    labelAlugar:       c.labelAlugar  || null,
   };
 }
 

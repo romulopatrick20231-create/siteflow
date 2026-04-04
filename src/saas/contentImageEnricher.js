@@ -134,7 +134,7 @@ async function enrichItemArray(items, sectionType, ctx) {
         excludeIds: ctx.excludeIds,
       });
       ctx.markUsed(photo);
-      return { ...item, image: photo?.url || null };
+      return { ...item, image: photo ? { url: photo.url, thumb: photo.thumb, alt: photo.alt || item.name || "" } : null };
     })
   );
 }
@@ -300,11 +300,25 @@ async function enrichBeforeAfter(data, sectionType, ctx) {
         excludeIds: ctx.excludeIds,
       });
       ctx.markUsed(photo);
-      return { ...c, image: photo?.url || null };
+      return { ...c, image: photo ? { url: photo.url, thumb: photo.thumb, alt: photo.alt || c.treatment || "" } : null };
     })
   );
 
   return { ...data, cases };
+}
+
+// imoveis_grid — listings[]
+async function enrichImoveisGrid(data, ctx) {
+  if (!Array.isArray(data?.listings)) return data;
+  const listings = await Promise.all(
+    data.listings.map(async (listing) => {
+      const subject = [listing.categoria, listing.neighborhood, "interior"].filter(Boolean).join(" ");
+      const photo = await searchImage(subject, ctx.forSection("imoveis_grid"), { excludeIds: ctx.excludeIds });
+      ctx.markUsed(photo);
+      return { ...listing, image: photo ? { url: photo.url, thumb: photo.thumb, alt: photo.alt || listing.name || "" } : null };
+    })
+  );
+  return { ...data, listings };
 }
 
 // ── Section type → enricher ───────────────────────────────────────────────
@@ -323,6 +337,7 @@ const SECTION_ENRICHERS = {
   image_grid:             (data, ctx) => enrichGallery(data, "image_grid", ctx),
   before_after_gallery:   (data, ctx) => enrichBeforeAfter(data, "before_after_gallery", ctx),
   before_after_slider:    (data, ctx) => enrichBeforeAfter(data, "before_after_slider", ctx),
+  imoveis_grid:           (data, ctx) => enrichImoveisGrid(data, ctx),
 };
 
 // ── Main export ────────────────────────────────────────────────────────────

@@ -39,7 +39,7 @@ const NICHE_CATEGORIES = {
   "Hamburgueria":                "restaurante",
   "Escritório de Advocacia":     "servicos",
   "Escritório de Contabilidade": "servicos",
-  "Imobiliária":                 "servicos",
+  "Imobiliária":                 "imobiliaria",
   "Academia / Studio Fitness":   "fitness",
   "Escola / Curso":              "educacao",
   "Oficina Mecânica":            "oficina",
@@ -59,6 +59,7 @@ export const NICHE_PAGES = {
   petshop:    ["inicio", "servicos",      "produtos",   "depoimentos", "contato"],
   beleza:     ["inicio", "servicos",      "galeria",    "depoimentos", "contato"],
   servicos:   ["inicio", "servicos",      "equipe",     "depoimentos", "contato"],
+  imobiliaria: ["inicio", "comprar", "alugar", "equipe", "contato"],
   fitness:    ["inicio", "servicos",      "galeria",    "planos",      "contato"],
   educacao:   ["inicio", "cursos",        "equipe",     "depoimentos", "contato"],
   oficina:    ["inicio", "servicos",      "galeria",    "depoimentos", "contato"],
@@ -429,6 +430,39 @@ export const FLOW_VARIANTS = {
         "servicos":  ["services_featured"],
         "equipe":    ["team_grid"],
         "depoimentos":["testimonials_featured"],
+        "contato":   ["booking_cta"],
+      },
+    },
+  ],
+
+  imobiliaria: [
+    {
+      id: "listings-first",
+      pages: {
+        "inicio":    ["hero_statement", "stats_showcase"],
+        "comprar":   ["imoveis_grid"],
+        "alugar":    ["imoveis_grid"],
+        "equipe":    ["team_grid"],
+        "contato":   ["booking_cta"],
+      },
+    },
+    {
+      id: "trust-led",
+      pages: {
+        "inicio":    ["hero",           "trust_bar"],
+        "comprar":   ["imoveis_grid"],
+        "alugar":    ["imoveis_grid"],
+        "equipe":    ["team_featured"],
+        "contato":   ["steps_cta"],
+      },
+    },
+    {
+      id: "results",
+      pages: {
+        "inicio":    ["hero_social_proof","impact_numbers"],
+        "comprar":   ["imoveis_grid"],
+        "alugar":    ["imoveis_grid"],
+        "equipe":    ["team_grid"],
         "contato":   ["booking_cta"],
       },
     },

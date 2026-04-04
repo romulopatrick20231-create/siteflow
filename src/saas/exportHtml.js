@@ -219,6 +219,210 @@ const SITE_JS = `
     });
   }
 
+  // ── Mobile nav ─────────────────────────────────────────────────────────────
+  var hamburger = document.getElementById("nav-hamburger");
+  var mobileNav = document.getElementById("nav-mobile");
+  if (hamburger && mobileNav) {
+    hamburger.addEventListener("click", function () {
+      mobileNav.classList.toggle("open");
+    });
+    mobileNav.querySelectorAll("a").forEach(function (a) {
+      a.addEventListener("click", function () { mobileNav.classList.remove("open"); });
+    });
+  }
+
+  // ── Menu category tabs ──────────────────────────────────────────────────────
+  var menuTabsWrap = document.getElementById("menu-tabs");
+  if (menuTabsWrap) {
+    menuTabsWrap.querySelectorAll(".menu-tab-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var cat = this.getAttribute("data-cat");
+        menuTabsWrap.querySelectorAll(".menu-tab-btn").forEach(function (b) { b.classList.remove("active"); });
+        this.classList.add("active");
+        document.querySelectorAll("#menu-cats .menu-cat").forEach(function (s) {
+          s.classList.toggle("active", s.getAttribute("data-cat") === cat);
+        });
+      });
+    });
+  }
+
+  // ── Imóveis filter ──────────────────────────────────────────────────────────
+  var imoveisGrid = document.getElementById("imoveis-grid");
+  if (imoveisGrid) {
+    var activeTipo = "todos";
+    var searchTerm = "";
+
+    function applyImoveisFilter() {
+      imoveisGrid.querySelectorAll(".imovel-card").forEach(function (card) {
+        var tipo = card.getAttribute("data-tipo") || "todos";
+        var nbhd = card.getAttribute("data-neighborhood") || "";
+        var tipoOk   = activeTipo === "todos" || tipo === activeTipo;
+        var searchOk = !searchTerm || nbhd.includes(searchTerm);
+        if (tipoOk && searchOk) {
+          card.removeAttribute("data-hidden");
+          card.style.display = "";
+        } else {
+          card.setAttribute("data-hidden", "");
+          card.style.display = "none";
+        }
+      });
+    }
+
+    document.querySelectorAll(".imoveis-filter-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        document.querySelectorAll(".imoveis-filter-btn").forEach(function (b) { b.classList.remove("active"); });
+        this.classList.add("active");
+        activeTipo = this.getAttribute("data-filter");
+        applyImoveisFilter();
+      });
+    });
+
+    var searchInput = document.getElementById("imoveis-search-input");
+    if (searchInput) {
+      searchInput.addEventListener("input", function () {
+        searchTerm = this.value.toLowerCase().trim();
+        applyImoveisFilter();
+      });
+    }
+  }
+
+  // ── Content products filter (petshop) ───────────────────────────────────────
+  var prodFilters = document.getElementById("prod-filters");
+  var prodGrid    = document.getElementById("prod-grid");
+  if (prodFilters && prodGrid) {
+    prodFilters.querySelectorAll(".content-prod-filter-btn").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        prodFilters.querySelectorAll(".content-prod-filter-btn").forEach(function (b) { b.classList.remove("active"); });
+        this.classList.add("active");
+        var cat = this.getAttribute("data-cat");
+        prodGrid.querySelectorAll(".content-prod-card").forEach(function (card) {
+          var cardCat = card.getAttribute("data-cat") || "";
+          if (cat === "todos" || cardCat === cat) {
+            card.removeAttribute("data-hidden");
+            card.style.display = "";
+          } else {
+            card.setAttribute("data-hidden", "");
+            card.style.display = "none";
+          }
+        });
+      });
+    });
+  }
+
+  // ── Cart system ─────────────────────────────────────────────────────────────
+  var cartFloat = document.getElementById("cart-float");
+  if (cartFloat) {
+    // Show cart button (only shown if add buttons exist)
+    if (document.querySelector(".add-btn")) cartFloat.style.display = "flex";
+  }
+
+  window.CartSystem = (function () {
+    var items = [];
+    var WA_HREF = (document.querySelector("a.btn-wa-hero") || {}).href || "";
+    var BNAME   = document.title.split("—")[0].trim();
+
+    function parsePrice(str) {
+      if (!str) return 0;
+      var m = (str + "").match(/[\d.,]+/);
+      if (!m) return 0;
+      return parseFloat(m[0].replace(/\./g, "").replace(",", ".")) || 0;
+    }
+
+    function fmt(num) {
+      return "R$ " + num.toFixed(2).replace(".", ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    }
+
+    function render() {
+      var container = document.getElementById("cart-items");
+      var countEl   = document.getElementById("cart-count");
+      var totalEl   = document.getElementById("cart-total");
+      var waBtn     = document.getElementById("cart-wa-btn");
+      if (!container) return;
+
+      var total = items.reduce(function (s, i) { return s + i.qty * i.price; }, 0);
+      var count = items.reduce(function (s, i) { return s + i.qty; }, 0);
+
+      if (countEl) {
+        countEl.textContent = count;
+        countEl.classList.toggle("show", count > 0);
+      }
+      if (totalEl) totalEl.textContent = fmt(total);
+      if (waBtn)   waBtn.disabled = items.length === 0;
+
+      if (!items.length) {
+        container.innerHTML = '<div class="cart-empty-msg">Seu carrinho está vazio.<br>Adicione itens do cardápio! 😊</div>';
+        return;
+      }
+
+      container.innerHTML = items.map(function (item, idx) {
+        return '<div class="cart-item-row">'
+          + (item.img ? '<img src="' + item.img + '" alt="' + item.name + '" class="cart-item-img">' : '<div class="cart-item-no-img">🍽️</div>')
+          + '<div class="cart-item-info"><div class="cart-item-name">' + item.name + '</div>'
+          + '<div class="cart-item-price">' + fmt(item.price) + ' × ' + item.qty + ' = ' + fmt(item.price * item.qty) + '</div></div>'
+          + '<div class="cart-qty">'
+          + '<button class="qty-btn" onclick="CartSystem.dec(' + idx + ')">−</button>'
+          + '<span class="qty-val">' + item.qty + '</span>'
+          + '<button class="qty-btn" onclick="CartSystem.inc(' + idx + ')">+</button>'
+          + '</div></div>';
+      }).join("");
+    }
+
+    return {
+      add: function (btn) {
+        var name  = btn.getAttribute("data-item-name") || "";
+        var price = parsePrice(btn.getAttribute("data-item-price") || "");
+        var img   = "";
+        var wrap  = btn.closest(".feat-card,.menu-card");
+        if (wrap) {
+          var imgEl = wrap.querySelector("img");
+          if (imgEl) img = imgEl.src;
+        }
+        var existing = items.find(function (i) { return i.name === name; });
+        if (existing) {
+          existing.qty++;
+        } else {
+          items.push({ name: name, price: price, img: img, qty: 1 });
+        }
+        render();
+        // Brief button feedback
+        btn.textContent = "✓ Adicionado";
+        setTimeout(function () { btn.textContent = "+ Pedir"; }, 1200);
+      },
+      inc: function (idx) { if (items[idx]) { items[idx].qty++; render(); } },
+      dec: function (idx) {
+        if (!items[idx]) return;
+        items[idx].qty--;
+        if (items[idx].qty <= 0) items.splice(idx, 1);
+        render();
+      },
+      open: function () {
+        document.getElementById("cart-drawer")?.classList.add("open");
+        document.getElementById("cart-overlay")?.classList.add("open");
+        document.body.style.overflow = "hidden";
+      },
+      close: function () {
+        document.getElementById("cart-drawer")?.classList.remove("open");
+        document.getElementById("cart-overlay")?.classList.remove("open");
+        document.body.style.overflow = "";
+      },
+      sendToWhatsApp: function () {
+        if (!items.length) return;
+        var total = items.reduce(function (s, i) { return s + i.qty * i.price; }, 0);
+        var lines = ["*Pedido — " + BNAME + "*", ""];
+        items.forEach(function (item) {
+          lines.push("• " + item.name + " x" + item.qty + " — " + fmt(item.price * item.qty));
+        });
+        lines.push("");
+        lines.push("*Total: " + fmt(total) + "*");
+        lines.push("");
+        lines.push("Aguardo confirmação e prazo de entrega 🙏");
+        var msg = encodeURIComponent(lines.join("\n"));
+        var base = WA_HREF ? WA_HREF.split("?")[0] : "https://wa.me/";
+        window.open(base + "?text=" + msg, "_blank");
+      },
+    };
+  })();
+
 })();
 `;
 

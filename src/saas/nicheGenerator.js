@@ -380,6 +380,22 @@ Preços: use valores realistas para restaurante brasileiro de qualidade média-a
   nearby_reference: "ponto de referência próximo para quem não conhece o endereço" }`,
     },
 
+    "imoveis_grid": {
+      briefing: `Catálogo de imóveis com listagens realistas para a cidade especificada.
+{ title (criativo, não genérico — ex: "Encontre Seu Próximo Lar em [cidade]"),
+  subtitle (1 frase sobre proposta de valor da imobiliária),
+  listings: [
+    { tipo: "comprar" | "alugar", categoria: "Apartamento" | "Casa" | "Comercial" | "Terreno",
+      name (ex: "Apartamento 2 quartos no Jardins"), description (2 frases: diferenciais + contexto de bairro),
+      area: "85m²", quartos: 2, banheiros: 1, vagas: 1,
+      price (ex: "R$ 650.000" para compra ou "R$ 2.800/mês" para aluguel),
+      neighborhood (bairro real da cidade), highlight: boolean, tag (ex: "Oportunidade", "Destaque", "Novo") }
+  ]
+}
+Gere 8 imóveis: 4 para comprar e 4 para alugar. Mix de categorias (apartamentos, casas, comercial).
+Preços realistas para a cidade informada. Bairros reais e conhecidos da cidade.`,
+    },
+
     "products_grid": {
       briefing: `Grade de produtos da loja.
 { title, subtitle, categories: ["categoria 1", "categoria 2", "categoria 3", ...] (5-6 categorias do nicho petshop),

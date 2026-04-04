@@ -29,22 +29,59 @@ function findSection(site, types) {
 
 function getHeroImages(site) {
   const imgs = [];
-  // User-uploaded banner first
+  // 1. User-uploaded banner
   for (const img of (site.images || [])) {
     if (img.type === "banner" && (img.public_url || img.url)) {
       imgs.push(img.public_url || img.url);
     }
   }
-  // Gallery images from Pexels
+  // 2. Gallery images (already objects)
   const gallery = findSection(site, ["image_gallery", "image_grid"]);
   for (const img of (gallery?.data?.images || [])) {
     if (img?.url && !imgs.includes(img.url)) imgs.push(img.url);
     if (imgs.length >= 5) break;
   }
-  // Service card images
+  // 3. Service item images
   for (const item of getServicesItems(site)) {
-    if (item?.image?.url && !imgs.includes(item.image.url)) imgs.push(item.image.url);
+    const url = item?.image?.url || (typeof item?.image === "string" ? item.image : null);
+    if (url && !imgs.includes(url)) imgs.push(url);
     if (imgs.length >= 5) break;
+  }
+  // 4. Menu featured items
+  if (imgs.length < 5) {
+    const mf = findSection(site, ["menu_featured"]);
+    for (const item of (mf?.data?.featured_items || [])) {
+      const url = item?.image?.url || (typeof item?.image === "string" ? item.image : null);
+      if (url && !imgs.includes(url)) imgs.push(url);
+      if (imgs.length >= 5) break;
+    }
+  }
+  // 5. Menu category items
+  if (imgs.length < 5) {
+    const mc = findSection(site, ["menu_categories"]);
+    for (const cat of (mc?.data?.categories || [])) {
+      for (const item of (cat.items || [])) {
+        const url = item?.image?.url || (typeof item?.image === "string" ? item.image : null);
+        if (url && !imgs.includes(url)) imgs.push(url);
+        if (imgs.length >= 5) break;
+      }
+      if (imgs.length >= 5) break;
+    }
+  }
+  // 6. Imóveis listings
+  if (imgs.length < 5) {
+    for (const page of (site.content?.pages || [])) {
+      for (const s of (page.sections || [])) {
+        if (s.type === "imoveis_grid") {
+          for (const listing of (s.data?.listings || [])) {
+            const url = listing?.image?.url;
+            if (url && !imgs.includes(url)) imgs.push(url);
+            if (imgs.length >= 5) break;
+          }
+        }
+      }
+      if (imgs.length >= 5) break;
+    }
   }
   return imgs.slice(0, 5);
 }
@@ -89,6 +126,46 @@ function getRichTestimonials(site) {
     ...(d.short_2 ? [{ nome: d.short_2.name, texto: d.short_2.text || "" }] : []),
   ];
   return null;
+}
+
+function getMenuData(site) {
+  const featured   = findSection(site, ["menu_featured"]);
+  const categories = findSection(site, ["menu_categories"]);
+  const locHours   = findSection(site, ["location_hours"]);
+  const highlight  = findSection(site, ["highlight_bar"]);
+  return {
+    featured:   featured?.data   || null,
+    categories: categories?.data || null,
+    location:   locHours?.data   || null,
+    highlight:  highlight?.data  || null,
+    hasMenu:    !!(featured?.data || categories?.data),
+  };
+}
+
+function getImoveisData(site) {
+  // Collect imoveis_grid sections from all pages
+  const all = [];
+  for (const page of (site.content?.pages || [])) {
+    for (const s of (page.sections || [])) {
+      if (s.type === "imoveis_grid" && Array.isArray(s.data?.listings)) {
+        all.push(...s.data.listings);
+      }
+    }
+  }
+  if (!all.length) return null;
+  return all;
+}
+
+function getContentProducts(site) {
+  const s = findSection(site, ["products_grid"]);
+  if (!s) return null;
+  return s.data || null;
+}
+
+function getPricingTable(site) {
+  const s = findSection(site, ["pricing_table"]);
+  if (!s) return null;
+  return s.data || null;
 }
 
 function parseStatValue(val) {
@@ -250,6 +327,205 @@ function renderProducts(products, d) {
 </section>`;
 }
 
+function renderHighlightBar(data) {
+  if (!data?.items?.length) return "";
+  const items = data.items.map(item => `<div class="highlight-item"><span>${item.icon || "✦"}</span><span>${item.text}</span></div>`).join("");
+  return `<div class="highlight-bar"><div class="highlight-items">${items}</div></div>`;
+}
+
+function renderMenuFull(menuData, copy, wa) {
+  if (!menuData.hasMenu) return "";
+  const parts = [];
+
+  // Featured dishes
+  if (menuData.featured?.featured_items?.length) {
+    const fd = menuData.featured;
+    const cards = fd.featured_items.map(item => {
+      const imgUrl = item?.image?.url || (typeof item?.image === "string" ? item.image : null);
+      const price = item.price || "";
+      return `<div class="feat-card sr-up" data-3d>
+  ${imgUrl ? `<img src="${imgUrl}" alt="${item.name}" class="feat-img" loading="lazy">` : `<div class="feat-no-img">🍽️</div>`}
+  <div class="feat-body">
+    <div class="feat-row">
+      <div class="feat-name">${item.name}</div>
+      ${item.badge ? `<span class="menu-badge">${item.badge}</span>` : ""}
+    </div>
+    <p class="feat-desc">${item.description || ""}</p>
+    <div class="feat-footer">
+      <div class="feat-price">${price}</div>
+      <button class="add-btn" data-item-name="${item.name}" data-item-price="${item.price || ""}" onclick="CartSystem.add(this)">+ Pedir</button>
+    </div>
+  </div>
+</div>`;
+    }).join("");
+
+    parts.push(`<div class="sh sr-fade">
+  <div class="section-label">${copy.labelMenu || "Cardápio"}</div>
+  <h2 class="section-title">${fd.title || copy.titleServices || "Destaques da Casa"}</h2>
+  ${fd.subtitle ? `<p style="color:var(--muted-fg);font-size:16px;max-width:600px">${fd.subtitle}</p>` : ""}
+</div>
+<div class="featured-grid">${cards}</div>`);
+  }
+
+  // Category tabs
+  if (menuData.categories?.categories?.length) {
+    const cats = menuData.categories.categories;
+    const tabBtns = cats.map((cat, i) => `<button class="menu-tab-btn${i === 0 ? " active" : ""}" data-cat="${i}">${cat.name}</button>`).join("");
+    const catSections = cats.map((cat, i) => {
+      const items = (cat.items || []).map(item => {
+        const imgUrl = item?.image?.url || (typeof item?.image === "string" ? item.image : null);
+        return `<div class="menu-card">
+  ${imgUrl ? `<div class="menu-card-img-wrap"><img src="${imgUrl}" alt="${item.name}" class="menu-card-img" loading="lazy"></div>` : `<div class="menu-card-no-img">🍽️</div>`}
+  <div class="menu-card-body">
+    <div>
+      <div class="menu-card-name">${item.name}${item.highlight ? ' <span class="menu-badge">Popular</span>' : ""}</div>
+      <p class="menu-card-desc">${item.description || ""}</p>
+    </div>
+    <div class="menu-card-footer">
+      <div class="menu-price">${item.price || ""}</div>
+      <button class="add-btn" data-item-name="${item.name}" data-item-price="${item.price || ""}" onclick="CartSystem.add(this)">+ Pedir</button>
+    </div>
+  </div>
+</div>`;
+      }).join("");
+      return `<div class="menu-cat${i === 0 ? " active" : ""}" data-cat="${i}">
+  <div class="menu-cat-title">${cat.name}</div>
+  <div class="menu-grid">${items}</div>
+</div>`;
+    }).join("");
+
+    parts.push(`<div class="menu-tabs-wrap" id="menu-tabs">${tabBtns}</div>
+<div id="menu-cats">${catSections}</div>`);
+  }
+
+  if (!parts.length) return "";
+
+  return `<section class="menu-section" id="cardapio">
+<div class="wrap">${parts.join("")}</div>
+</section>`;
+}
+
+function renderLocationHours(data, wa, businessName) {
+  if (!data) return "";
+  const hours = data.hours || {};
+  const hourRows = Object.entries(hours).map(([key, val]) => {
+    const labels = { weekdays: "Seg–Sex", saturday: "Sábado", sunday: "Domingo" };
+    return `<div class="hours-row"><span class="hours-day">${labels[key] || key}</span><span class="hours-time">${val}</span></div>`;
+  }).join("");
+
+  return `<section class="location-section" id="localizacao">
+<div class="wrap">
+  <div class="sh sr-fade">
+    <div class="section-label">Onde Estamos</div>
+    <h2 class="section-title">${data.title || "Localização e Horários"}</h2>
+  </div>
+  <div class="location-grid">
+    <div class="location-map-placeholder">
+      <span>📍</span>
+      <p>${data.address || ""}<br>${data.neighborhood ? data.neighborhood + ", " : ""}${data.city || ""}</p>
+      ${wa ? `<a class="imovel-cta" href="${wa}" target="_blank">Ver no Mapa</a>` : ""}
+    </div>
+    <div class="location-info">
+      ${data.address ? `<div class="location-row"><span class="location-icon">📍</span><div class="location-text"><strong>Endereço</strong>${data.address}${data.neighborhood ? ", " + data.neighborhood : ""}${data.city ? " — " + data.city : ""}</div></div>` : ""}
+      ${data.parking ? `<div class="location-row"><span class="location-icon">🅿️</span><div class="location-text"><strong>Estacionamento</strong>${data.parking}</div></div>` : ""}
+      ${data.nearby_reference ? `<div class="location-row"><span class="location-icon">🗺️</span><div class="location-text"><strong>Referência</strong>${data.nearby_reference}</div></div>` : ""}
+      ${hourRows ? `<div class="location-row"><span class="location-icon">🕐</span><div class="location-text"><strong>Horário de Funcionamento</strong><div class="hours-grid">${hourRows}</div></div></div>` : ""}
+    </div>
+  </div>
+</div>
+</section>`;
+}
+
+function renderImoveisFull(listings, copy, wa, businessName) {
+  if (!listings?.length) return "";
+
+  const cards = listings.map(listing => {
+    const imgUrl = listing?.image?.url;
+    const waMsg = encodeURIComponent(`Olá! Vi o imóvel "${listing.name}" no site da ${businessName} e gostaria de mais informações.`);
+    const waHref = wa.split("?")[0] + `?text=${waMsg}`;
+    return `<div class="imovel-card sr-up" data-tipo="${listing.tipo || "todos"}" data-neighborhood="${(listing.neighborhood || "").toLowerCase()}">
+  <div class="imovel-img-wrap">
+    ${imgUrl ? `<img src="${imgUrl}" alt="${listing.name}" class="imovel-img" loading="lazy">` : `<div class="imovel-no-img">🏠</div>`}
+    <span class="imovel-tag imovel-tag-${listing.tipo || "comprar"}">${listing.tipo === "alugar" ? "Alugar" : "Comprar"}</span>
+    ${listing.highlight ? `<span class="imovel-tag imovel-tag-highlight" style="top:12px;right:12px;left:auto">${listing.tag || "Destaque"}</span>` : ""}
+  </div>
+  <div class="imovel-body">
+    <div class="imovel-categoria">${listing.categoria || "Imóvel"}</div>
+    <div class="imovel-name">${listing.name}</div>
+    ${listing.neighborhood ? `<div class="imovel-neighborhood">📍 ${listing.neighborhood}</div>` : ""}
+    <div class="imovel-details">
+      ${listing.quartos ? `<span class="imovel-detail">🛏 ${listing.quartos} quarto${listing.quartos > 1 ? "s" : ""}</span>` : ""}
+      ${listing.banheiros ? `<span class="imovel-detail">🚿 ${listing.banheiros} banheiro${listing.banheiros > 1 ? "s" : ""}</span>` : ""}
+      ${listing.vagas ? `<span class="imovel-detail">🚗 ${listing.vagas} vaga${listing.vagas > 1 ? "s" : ""}</span>` : ""}
+    </div>
+    <div class="imovel-footer">
+      <div>
+        <div class="imovel-price">${listing.price}</div>
+        ${listing.area ? `<div class="imovel-area">${listing.area}</div>` : ""}
+      </div>
+      <a class="imovel-cta" href="${waHref}" target="_blank">Ver Imóvel</a>
+    </div>
+  </div>
+</div>`;
+  }).join("");
+
+  const hasComprar = listings.some(l => l.tipo === "comprar");
+  const hasAlugar  = listings.some(l => l.tipo === "alugar");
+
+  return `<section class="imoveis-section" id="imoveis">
+<div class="wrap">
+  <div class="sh sr-fade">
+    <div class="section-label">${copy.labelImoveis || "Imóveis"}</div>
+    <h2 class="section-title">${listings[0]?.title || "Imóveis Disponíveis"}</h2>
+  </div>
+  <div class="imoveis-top">
+    <div class="imoveis-filters">
+      <button class="imoveis-filter-btn active" data-filter="todos">Todos</button>
+      ${hasComprar ? `<button class="imoveis-filter-btn" data-filter="comprar">${copy.labelComprar || "Comprar"}</button>` : ""}
+      ${hasAlugar  ? `<button class="imoveis-filter-btn" data-filter="alugar">${copy.labelAlugar || "Alugar"}</button>` : ""}
+    </div>
+    <div class="imoveis-search">
+      <span>🔍</span>
+      <input type="text" id="imoveis-search-input" placeholder="Buscar por bairro...">
+    </div>
+  </div>
+  <div class="imoveis-grid" id="imoveis-grid">${cards}</div>
+</div>
+</section>`;
+}
+
+function renderContentProducts(data, copy) {
+  if (!data?.featured?.length) return "";
+  const categories = data.categories || [];
+  const filterBtns = categories.length > 0
+    ? `<button class="content-prod-filter-btn active" data-cat="todos">Todos</button>${categories.map(c => `<button class="content-prod-filter-btn" data-cat="${c.toLowerCase()}">${c}</button>`).join("")}`
+    : "";
+
+  const cards = data.featured.map(item => {
+    const imgUrl = item?.image?.url || (typeof item?.image === "string" ? item.image : null);
+    return `<div class="content-prod-card" data-cat="${(item.category || "").toLowerCase()}">
+  ${imgUrl ? `<img src="${imgUrl}" alt="${item.name}" class="content-prod-img" loading="lazy">` : `<div class="content-prod-no-img">🐾</div>`}
+  <div class="content-prod-body">
+    ${item.category ? `<div class="content-prod-cat">${item.category}</div>` : ""}
+    <div class="content-prod-name">${item.name}</div>
+    ${item.description ? `<p class="content-prod-desc">${item.description}</p>` : ""}
+  </div>
+</div>`;
+  }).join("");
+
+  return `<section class="content-prod-section" id="produtos-catalogo">
+<div class="wrap">
+  <div class="sh sr-fade">
+    <div class="section-label">Produtos</div>
+    <h2 class="section-title">${data.title || "Nosso Catálogo"}</h2>
+    ${data.subtitle ? `<p style="color:var(--muted-fg);font-size:16px;max-width:600px">${data.subtitle}</p>` : ""}
+  </div>
+  ${filterBtns ? `<div class="content-prod-filters" id="prod-filters">${filterBtns}</div>` : ""}
+  <div class="content-prod-grid" id="prod-grid">${cards}</div>
+</div>
+</section>`;
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function buildHTML(site) {
@@ -283,6 +559,35 @@ export function buildHTML(site) {
   const heroBackground = heroImgs.length > 0
     ? heroImgs.map((url, i) => `<div class="hero-slide${i === 0 ? " active" : ""}" style="background-image:url('${url}')"></div>`).join("")
     : "";
+
+  // Collect available content for smart nav
+  const menuData      = getMenuData(site);
+  const imoveisData   = getImoveisData(site);
+  const contentProds  = getContentProducts(site);
+  const locationData  = menuData.location;
+  const highlightData = menuData.highlight;
+  const pricingData   = getPricingTable(site);
+  const isRestaurante = ["Restaurante","Pizzaria","Padaria","Hamburgueria"].includes(site.niche);
+  const isPetshop     = site.niche === "Clínica Veterinária" || site.niche?.toLowerCase().includes("pet");
+  const isImobiliaria = site.niche === "Imobiliária";
+
+  // Build smart nav links
+  const NAV_ITEMS = [
+    { label: "Início",       href: "#inicio",          always: true },
+    { label: copy.labelMenu || "Cardápio", href: "#cardapio",  show: menuData.hasMenu },
+    { label: "Imóveis",      href: "#imoveis",         show: !!imoveisData?.length },
+    { label: "Serviços",     href: "#servicos",         show: svcItems.length > 0 && !menuData.hasMenu },
+    { label: "Produtos",     href: "#produtos",         show: hasProducts },
+    { label: "Catálogo",     href: "#produtos-catalogo",show: !!contentProds?.featured?.length && !hasProducts },
+    { label: "Galeria",      href: "#galeria",          show: galleryImgs.length > 0 },
+    { label: "Localização",  href: "#localizacao",      show: !!locationData },
+    { label: "Depoimentos",  href: "#depoimentos",      show: !!(richTestis?.length) },
+    { label: "Contato",      href: "#contato",          always: true },
+  ];
+  const navLinks = NAV_ITEMS
+    .filter(i => i.always || i.show)
+    .map(i => `<a class="nav-link" href="${i.href}">${i.label}</a>`)
+    .join("");
 
   return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -438,6 +743,156 @@ export function buildHTML(site) {
     /* ── Responsive ── */
     @media(max-width:768px){section{padding:72px 20px}.nav{padding:0 20px}.testi-grid{grid-template-columns:1fr}.hero h1{font-size:clamp(28px,8vw,44px)}}
     @media(max-width:480px){.hero-btns{flex-direction:column;align-items:center}.btn-wa-hero,.btn-ghost{width:100%;justify-content:center}}
+    /* ── Nav links ── */
+    .nav-links{display:flex;align-items:center;gap:4px}
+    .nav-link{font-size:13px;font-weight:600;color:var(--fg);padding:7px 14px;border-radius:8px;transition:background .18s,color .18s;white-space:nowrap}
+    .nav-link:hover,.nav-link.active{background:var(--muted);color:var(--primary)}
+    .nav-hamburger{display:none;background:none;border:none;cursor:pointer;padding:8px;color:var(--fg)}
+    .nav-hamburger span{display:block;width:22px;height:2px;background:currentColor;margin:4px 0;transition:transform .2s}
+    .nav-mobile{display:none;position:fixed;top:66px;left:0;right:0;background:rgba(255,255,255,.97);backdrop-filter:blur(18px);border-bottom:1px solid var(--bdr);z-index:199;padding:16px 24px;flex-direction:column;gap:4px}
+    .nav-mobile.open{display:flex}
+    .nav-mobile .nav-link{font-size:15px;padding:12px 16px}
+    @media(max-width:768px){.nav-links{display:none}.nav-hamburger{display:block}}
+    /* ── Highlight bar (restaurant info strip) ── */
+    .highlight-bar{background:var(--primary);color:#fff;padding:14px 24px;overflow-x:auto}
+    .highlight-items{display:flex;gap:32px;justify-content:center;min-width:max-content;margin:0 auto}
+    .highlight-item{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;white-space:nowrap}
+    /* ── Menu section ── */
+    .menu-section{background:#fff}
+    .menu-tabs-wrap{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:40px;scrollbar-width:none}
+    .menu-tabs-wrap::-webkit-scrollbar{display:none}
+    .menu-tab-btn{flex-shrink:0;padding:9px 22px;border-radius:100px;border:2px solid var(--bdr);background:#fff;font-size:13px;font-weight:700;color:var(--muted-fg);cursor:pointer;transition:all .18s;white-space:nowrap}
+    .menu-tab-btn.active,.menu-tab-btn:hover{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+    .menu-cat{display:none}
+    .menu-cat.active{display:block}
+    .menu-cat-title{font-size:19px;font-weight:800;color:var(--fg);margin-bottom:20px;padding-bottom:10px;border-bottom:2px solid var(--bdr)}
+    .menu-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;margin-bottom:40px}
+    .menu-card{display:flex;gap:16px;background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;transition:box-shadow .2s;align-items:stretch}
+    .menu-card:hover{box-shadow:var(--shl)}
+    .menu-card-img-wrap{flex-shrink:0;width:110px;overflow:hidden}
+    .menu-card-img{width:110px;height:100%;object-fit:cover;transition:transform .4s}
+    .menu-card:hover .menu-card-img{transform:scale(1.06)}
+    .menu-card-no-img{width:110px;background:var(--muted);display:flex;align-items:center;justify-content:center;font-size:36px}
+    .menu-card-body{flex:1;padding:16px 16px 16px 0;display:flex;flex-direction:column;justify-content:space-between}
+    .menu-card-name{font-size:15px;font-weight:700;margin-bottom:4px}
+    .menu-card-desc{font-size:13px;color:var(--muted-fg);line-height:1.5;margin-bottom:10px;flex:1}
+    .menu-card-footer{display:flex;align-items:center;justify-content:space-between;gap:8px}
+    .menu-price{font-size:16px;font-weight:800;color:var(--primary)}
+    .menu-badge{font-size:10px;font-weight:700;padding:3px 10px;border-radius:100px;background:var(--accent);color:var(--accent-fg);white-space:nowrap}
+    .add-btn{flex-shrink:0;padding:7px 16px;border-radius:8px;background:var(--primary);color:var(--primary-fg);border:none;font-size:12px;font-weight:700;cursor:pointer;transition:transform .15s,background .15s;white-space:nowrap}
+    .add-btn:hover{background:var(--accent);transform:scale(1.04)}
+    .add-btn:active{transform:scale(.96)}
+    /* ── Featured dishes ── */
+    .featured-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:24px;margin-bottom:48px}
+    .feat-card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);transition:box-shadow .2s,transform .2s}
+    .feat-card:hover{box-shadow:var(--shl);transform:translateY(-3px)}
+    .feat-img{width:100%;height:200px;object-fit:cover;transition:transform .5s}
+    .feat-card:hover .feat-img{transform:scale(1.05)}
+    .feat-no-img{height:200px;display:flex;align-items:center;justify-content:center;font-size:52px;background:var(--muted)}
+    .feat-body{padding:20px}
+    .feat-row{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+    .feat-name{font-size:16px;font-weight:800}
+    .feat-desc{font-size:13px;color:var(--muted-fg);line-height:1.6;margin-bottom:14px}
+    .feat-footer{display:flex;align-items:center;justify-content:space-between}
+    .feat-price{font-size:19px;font-weight:900;color:var(--primary)}
+    /* ── Cart ── */
+    .cart-float{position:fixed;bottom:28px;left:28px;z-index:999;width:64px;height:64px;border-radius:50%;background:var(--primary);color:var(--primary-fg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 28px rgba(0,0,0,.25);cursor:pointer;border:none;transition:transform .2s}
+    .cart-float:hover{transform:scale(1.1)}
+    .cart-float svg{width:26px;height:26px}
+    .cart-count{position:absolute;top:-4px;right:-4px;width:22px;height:22px;background:var(--accent);color:var(--accent-fg);border-radius:50%;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;display:none}
+    .cart-count.show{display:flex}
+    .cart-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:998;opacity:0;pointer-events:none;transition:opacity .25s}
+    .cart-overlay.open{opacity:1;pointer-events:auto}
+    .cart-drawer{position:fixed;top:0;right:-420px;width:min(420px,100vw);height:100vh;background:#fff;z-index:999;box-shadow:-4px 0 40px rgba(0,0,0,.18);transition:right .3s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+    .cart-drawer.open{right:0}
+    .cart-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--bdr)}
+    .cart-header h3{font-size:17px;font-weight:800}
+    .cart-close{background:none;border:none;font-size:22px;cursor:pointer;color:var(--muted-fg);padding:4px}
+    .cart-items{flex:1;overflow-y:auto;padding:20px 24px}
+    .cart-empty-msg{text-align:center;color:var(--muted-fg);padding:48px 0;font-size:14px}
+    .cart-item-row{display:flex;gap:12px;align-items:center;padding:14px 0;border-bottom:1px solid var(--bdr)}
+    .cart-item-img{width:54px;height:54px;object-fit:cover;border-radius:8px;flex-shrink:0}
+    .cart-item-no-img{width:54px;height:54px;background:var(--muted);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+    .cart-item-info{flex:1}
+    .cart-item-name{font-size:14px;font-weight:700;margin-bottom:3px}
+    .cart-item-price{font-size:13px;color:var(--muted-fg)}
+    .cart-qty{display:flex;align-items:center;gap:8px;flex-shrink:0}
+    .qty-btn{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--bdr);background:#fff;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--fg);transition:background .15s}
+    .qty-btn:hover{background:var(--muted)}
+    .qty-val{font-size:14px;font-weight:700;min-width:20px;text-align:center}
+    .cart-footer{padding:20px 24px;border-top:1px solid var(--bdr)}
+    .cart-total-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+    .cart-total-label{font-size:14px;font-weight:600;color:var(--muted-fg)}
+    .cart-total-val{font-size:22px;font-weight:900;color:var(--fg)}
+    .cart-wa-btn{width:100%;padding:16px;background:var(--wa);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:background .2s,transform .15s}
+    .cart-wa-btn:hover{background:var(--wad)}
+    .cart-wa-btn:active{transform:scale(.98)}
+    .cart-wa-btn:disabled{opacity:.5;cursor:default}
+    /* ── Imóveis ── */
+    .imoveis-section{background:#fff}
+    .imoveis-top{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:32px}
+    .imoveis-filters{display:flex;gap:8px;flex-wrap:wrap}
+    .imoveis-filter-btn{padding:8px 20px;border-radius:100px;border:2px solid var(--bdr);background:#fff;font-size:13px;font-weight:700;color:var(--muted-fg);cursor:pointer;transition:all .18s}
+    .imoveis-filter-btn.active,.imoveis-filter-btn:hover{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+    .imoveis-search{display:flex;align-items:center;gap:8px;background:var(--muted);border-radius:10px;padding:9px 16px;border:1.5px solid var(--bdr)}
+    .imoveis-search input{background:none;border:none;outline:none;font-size:13px;font-family:var(--font-b);color:var(--fg);width:200px}
+    .imoveis-search input::placeholder{color:var(--muted-fg)}
+    .imoveis-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px}
+    .imovel-card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);transition:box-shadow .2s,transform .2s}
+    .imovel-card:hover{box-shadow:var(--shl);transform:translateY(-4px)}
+    .imovel-card[data-hidden]{display:none}
+    .imovel-img-wrap{position:relative;overflow:hidden;height:200px}
+    .imovel-img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
+    .imovel-card:hover .imovel-img{transform:scale(1.05)}
+    .imovel-no-img{height:200px;background:var(--muted);display:flex;align-items:center;justify-content:center;font-size:52px}
+    .imovel-tag{position:absolute;top:12px;left:12px;padding:4px 12px;border-radius:100px;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+    .imovel-tag-comprar{background:#059669;color:#fff}
+    .imovel-tag-alugar{background:#7C3AED;color:#fff}
+    .imovel-tag-highlight{background:var(--accent);color:var(--accent-fg)}
+    .imovel-body{padding:20px}
+    .imovel-categoria{font-size:11px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+    .imovel-name{font-size:16px;font-weight:800;margin-bottom:8px;line-height:1.3}
+    .imovel-neighborhood{font-size:13px;color:var(--muted-fg);margin-bottom:12px}
+    .imovel-details{display:flex;gap:14px;font-size:12px;color:var(--muted-fg);font-weight:600;margin-bottom:14px;flex-wrap:wrap}
+    .imovel-detail{display:flex;align-items:center;gap:4px}
+    .imovel-footer{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .imovel-price{font-size:18px;font-weight:900;color:var(--primary)}
+    .imovel-area{font-size:13px;color:var(--muted-fg);font-weight:600}
+    .imovel-cta{padding:8px 18px;border-radius:8px;background:var(--primary);color:var(--primary-fg);font-size:12px;font-weight:700;text-decoration:none;transition:background .15s;white-space:nowrap}
+    .imovel-cta:hover{background:var(--accent)}
+    /* ── Content products (petshop) ── */
+    .content-prod-section{background:var(--bg)}
+    .content-prod-filters{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:32px}
+    .content-prod-filter-btn{padding:8px 18px;border-radius:100px;border:2px solid var(--bdr);background:#fff;font-size:13px;font-weight:700;color:var(--muted-fg);cursor:pointer;transition:all .18s}
+    .content-prod-filter-btn.active,.content-prod-filter-btn:hover{background:var(--primary);color:var(--primary-fg);border-color:var(--primary)}
+    .content-prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:20px}
+    .content-prod-card{background:var(--card);border:1px solid var(--bdr);border-radius:var(--r);overflow:hidden;box-shadow:var(--sh);transition:box-shadow .2s}
+    .content-prod-card:hover{box-shadow:var(--shl)}
+    .content-prod-card[data-hidden]{display:none}
+    .content-prod-img{width:100%;height:180px;object-fit:cover}
+    .content-prod-no-img{height:180px;display:flex;align-items:center;justify-content:center;font-size:44px;background:var(--muted)}
+    .content-prod-body{padding:16px}
+    .content-prod-cat{font-size:10px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+    .content-prod-name{font-size:15px;font-weight:700;margin-bottom:6px}
+    .content-prod-desc{font-size:13px;color:var(--muted-fg);line-height:1.5}
+    /* ── Location hours ── */
+    .location-section{background:var(--bg)}
+    .location-grid{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:start}
+    .location-map-placeholder{background:var(--muted);border-radius:var(--r);height:280px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;border:2px dashed var(--bdr)}
+    .location-map-placeholder span{font-size:40px}
+    .location-map-placeholder p{font-size:14px;color:var(--muted-fg);font-weight:600}
+    .location-info h3{font-size:20px;font-weight:800;margin-bottom:16px}
+    .location-row{display:flex;gap:12px;margin-bottom:14px;align-items:flex-start}
+    .location-icon{font-size:18px;flex-shrink:0;margin-top:1px}
+    .location-text{font-size:14px;color:var(--muted-fg);line-height:1.6}
+    .location-text strong{color:var(--fg);display:block;font-size:13px;font-weight:700;margin-bottom:2px}
+    .hours-grid{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+    .hours-row{display:flex;justify-content:space-between;font-size:13px;padding:6px 0;border-bottom:1px solid var(--bdr)}
+    .hours-row:last-child{border:none}
+    .hours-day{font-weight:600;color:var(--fg)}
+    .hours-time{color:var(--muted-fg)}
+    @media(max-width:768px){.location-grid{grid-template-columns:1fr}}
+    @media(max-width:480px){.imoveis-search input{width:140px}}
   </style>
 </head>
 <body>
@@ -450,8 +905,19 @@ export function buildHTML(site) {
     ${logoImg ? `<img src="${logoImg.public_url || logoImg.url}" alt="${site.business_name}" class="nav-logo">` : ""}
     ${site.business_name}
   </span>
-  <a class="btn btn-wa nav-cta" href="${wa}" target="_blank" rel="noopener noreferrer">${WA_SVG} WhatsApp</a>
+  <div class="nav-links">
+    ${navLinks}
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <button class="nav-hamburger" id="nav-hamburger" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <a class="btn btn-wa nav-cta" href="${wa}" target="_blank" rel="noopener noreferrer">${WA_SVG} WhatsApp</a>
+  </div>
 </nav>
+<div class="nav-mobile" id="nav-mobile">
+  ${navLinks}
+</div>
 
 <section class="hero">
   ${heroImgs.length > 0 ? `<div class="hero-slides">${heroBackground}</div>` : ""}
@@ -471,9 +937,15 @@ export function buildHTML(site) {
 
 ${location ? `<div class="proof-bar"><p>${copy.proofBar.replace("{city}", location)}</p></div>` : ""}
 
+${highlightData ? renderHighlightBar(highlightData) : ""}
+
 ${stats.length > 0 ? renderStats(stats) : ""}
 
-${svcItems.length > 0 ? renderServices(svcItems, d, copy) : ""}
+${menuData.hasMenu ? renderMenuFull(menuData, copy, wa) : svcItems.length > 0 ? renderServices(svcItems, d, copy) : ""}
+
+${imoveisData?.length ? renderImoveisFull(imoveisData, copy, wa, site.business_name) : ""}
+
+${contentProds?.featured?.length ? renderContentProducts(contentProds, copy) : ""}
 
 ${hasProducts ? renderProducts(site.products, d) : ""}
 
@@ -493,6 +965,8 @@ ${hasAbout ? `<section class="about-section" id="sobre">
 </div>
 </section>` : ""}
 
+${locationData ? renderLocationHours(locationData, wa, site.business_name) : ""}
+
 <section class="cta-section" id="contato">
   <div class="wrap">
     <h2 class="sr-up">${copy.ctaHeadline}</h2>
@@ -510,6 +984,32 @@ ${hasAbout ? `<section class="about-section" id="sobre">
 </footer>
 
 <a class="wa-float" href="${wa}" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">${WA_SVG}</a>
+
+<!-- Cart (shown only on restaurant niches — controlled by JS) -->
+<button class="cart-float" id="cart-float" style="display:none" aria-label="Carrinho" onclick="CartSystem.open()">
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
+  <span class="cart-count" id="cart-count">0</span>
+</button>
+<div class="cart-overlay" id="cart-overlay" onclick="CartSystem.close()"></div>
+<div class="cart-drawer" id="cart-drawer">
+  <div class="cart-header">
+    <h3>🛒 Meu Pedido</h3>
+    <button class="cart-close" onclick="CartSystem.close()">✕</button>
+  </div>
+  <div class="cart-items" id="cart-items">
+    <div class="cart-empty-msg">Seu carrinho está vazio.<br>Adicione itens do cardápio! 😊</div>
+  </div>
+  <div class="cart-footer">
+    <div class="cart-total-row">
+      <span class="cart-total-label">Total do Pedido</span>
+      <span class="cart-total-val" id="cart-total">R$ 0,00</span>
+    </div>
+    <button class="cart-wa-btn" id="cart-wa-btn" onclick="CartSystem.sendToWhatsApp()" disabled>
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.558 4.126 1.535 5.857L.057 23.716a.5.5 0 00.641.592l5.945-1.561A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22a9.96 9.96 0 01-5.1-1.395l-.37-.218-3.797.996 1.012-3.698-.24-.381A9.96 9.96 0 012 12C2 6.477 6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/></svg>
+      Enviar Pedido pelo WhatsApp
+    </button>
+  </div>
+</div>
 
 </body>
 </html>`;
