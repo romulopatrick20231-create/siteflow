@@ -140,7 +140,6 @@ async function saveSite(userId, lead, siteJson) {
       phone:         lead.phone    || null,
       city:          lead.city     || null,
       neighborhood:  lead.neighborhood || null,
-      address:       lead.address  || null,
       status:        "draft",
       content:       siteJson,       // AI-generated content (immutable base)
       edits:         {},             // user overrides (initially empty)
