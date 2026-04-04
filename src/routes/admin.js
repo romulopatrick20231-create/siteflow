@@ -30,6 +30,7 @@
  * ── Generation ─────────────────────────────────────────────────────────────
  * POST  /admin/generate-batch         — generate sites in bulk { leads[], generateImages? }
  * POST  /admin/generate-single        — generate one site for existing user { userId, businessName, ... }
+ * POST  /admin/sites/:id/publish      — force-publish any site (bypasses ownership + status guards)
  */
 
 import { Router }        from "express";
@@ -56,6 +57,10 @@ import {
   adminEnableSite,
 } from "../saas/admin.js";
 import { buildSitesV2, buildSiteForUser } from "../saas/siteBuilderV2.js";
+import { getSiteForBuild }               from "../saas/sites.js";
+import { exportHtml }                    from "../saas/exportHtml.js";
+import { deploySite }                    from "../services/vercelService.js";
+import { markSitePublished }             from "../saas/cmsSaas.js";
 import { NotFoundError, ValidationError, BusinessError } from "../utils/errors.js";
 import logger from "../utils/logger.js";
 
@@ -465,6 +470,42 @@ router.put(
     await updateSiteStripe(siteId, req.body);
     logger.info("Admin updated site Stripe settings", { adminId: req.userId, siteId, fields: Object.keys(req.body) });
     send(res, { updated: true, siteId, ...req.body });
+  })
+);
+
+// ── POST /admin/sites/:id/publish ─────────────────────────────────────────────
+// Force-publish any site regardless of status or ownership.
+// Bypasses status guard (draft/ready) and publish-limit check.
+// Used after generate-single to immediately deploy the site.
+router.post(
+  "/sites/:id/publish",
+  asyncHandler(async (req, res) => {
+    const siteId = req.params.id;
+    const db     = getAdminClient();
+
+    const site = await getSiteForBuild(siteId);
+    if (!site) throw new NotFoundError("Site");
+
+    logger.info("Admin force-publish started", { adminId: req.userId, siteId, siteName: site.business_name });
+
+    // Force status to ready so exportHtml has a consistent state
+    await db.from("sites").update({ status: "ready" }).eq("id", siteId);
+
+    const { html, css, js } = exportHtml({ ...site, status: "ready" });
+    const { url } = await deploySite({
+      slug:  site.slug,
+      files: [
+        { name: "index.html", content: html },
+        { name: "style.css",  content: css  },
+        { name: "script.js",  content: js   },
+      ],
+    });
+
+    await markSitePublished(siteId, site.user_id, url);
+
+    logger.info("Admin force-publish complete", { adminId: req.userId, siteId, url });
+
+    send(res, { siteId, url, published_at: new Date().toISOString() });
   })
 );
 
