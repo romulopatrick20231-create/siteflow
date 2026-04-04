@@ -61,7 +61,6 @@ import { getSiteForBuild }               from "../saas/sites.js";
 import { getAdminClient }               from "../saas/db.js";
 import { exportHtml }                    from "../saas/exportHtml.js";
 import { deploySite }                    from "../services/vercelService.js";
-import { markSitePublished }             from "../saas/cmsSaas.js";
 import { NotFoundError, ValidationError, BusinessError } from "../utils/errors.js";
 import logger from "../utils/logger.js";
 
@@ -489,10 +488,7 @@ router.post(
 
     logger.info("Admin force-publish started", { adminId: req.userId, siteId, siteName: site.business_name });
 
-    // Force status to ready so exportHtml has a consistent state
-    await db.from("sites").update({ status: "ready" }).eq("id", siteId);
-
-    const { html, css, js } = exportHtml({ ...site, status: "ready" });
+    const { html, css, js } = exportHtml(site);
     const { url } = await deploySite({
       slug:  site.slug,
       files: [
@@ -502,11 +498,19 @@ router.post(
       ],
     });
 
-    await markSitePublished(siteId, site.user_id, url);
+    // Bypass markSitePublished (which re-checks status) — update DB directly
+    const now = new Date().toISOString();
+    await db.from("sites").update({
+      status:            "published",
+      site_url:          url,
+      publish_count:     (site.publish_count || 0) + 1,
+      last_published_at: now,
+      updated_at:        now,
+    }).eq("id", siteId);
 
     logger.info("Admin force-publish complete", { adminId: req.userId, siteId, url });
 
-    send(res, { siteId, url, published_at: new Date().toISOString() });
+    send(res, { siteId, url, published_at: now });
   })
 );
 
