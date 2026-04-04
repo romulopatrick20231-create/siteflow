@@ -138,6 +138,7 @@ export const schemas = {
       headline:    shortStr(300).allow("", null),
       description: shortStr(1000).allow("", null),
       phone:       shortStr(30).allow("", null),
+      rating_text: shortStr(100).allow("", null),
     }),
   }).or("prompt", "type"),
 

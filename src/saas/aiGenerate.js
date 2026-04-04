@@ -144,6 +144,7 @@ Campos válidos que você pode alterar:
   - headline    : título principal exibido no hero (ex: "A melhor pizza da cidade")
   - description : descrição curta do negócio (ex: "Pizza artesanal feita no forno a lenha")
   - phone       : telefone ou WhatsApp (ex: "(11) 99999-9999")
+  - rating_text : texto de avaliação exibido junto às estrelas no hero (ex: "5.0 · +1000 avaliações")
 
 REGRAS ABSOLUTAS:
 1. Retorne APENAS JSON válido — sem markdown, sem texto fora do JSON.

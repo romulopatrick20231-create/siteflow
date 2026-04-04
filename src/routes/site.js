@@ -62,6 +62,7 @@ function toFrontend(site) {
     headline:    site.site_content?.headline       ?? "",
     description: site.site_content?.hero_copy      ?? "",
     phone:       site.phone                        ?? "",
+    rating_text: site.site_content?.rating_text    ?? "",
     url:         site.site_url                     ?? null,
     status:      site.status,
     slug:        site.slug,
@@ -78,10 +79,10 @@ router.get("/", asyncHandler(async (req, res) => {
 }));
 
 // ── PUT /site ─────────────────────────────────────────────────────────────
-// Accepts any subset of { name, headline, description, phone, city }
-// Maps to saveSiteInfo (business_name, phone, city) + saveSiteContent (headline, hero_copy)
+// Accepts any subset of { name, headline, description, phone, city, rating_text }
+// Maps to saveSiteInfo (business_name, phone, city) + saveSiteContent (headline, hero_copy, rating_text)
 router.put("/", asyncHandler(async (req, res) => {
-  const { name, headline, description, phone, city } = req.body;
+  const { name, headline, description, phone, city, rating_text } = req.body;
   const siteId = await resolveSiteId(req.userId, req.user?.email);
 
   const infoFields = {};
@@ -90,8 +91,9 @@ router.put("/", asyncHandler(async (req, res) => {
   if (city        != null) infoFields.city            = city;
 
   const contentFields = {};
-  if (headline    != null) contentFields.headline   = headline;
-  if (description != null) contentFields.hero_copy  = description;
+  if (headline    != null) contentFields.headline     = headline;
+  if (description != null) contentFields.hero_copy    = description;
+  if (rating_text != null) contentFields.rating_text  = rating_text;
 
   await Promise.all([
     Object.keys(infoFields).length
