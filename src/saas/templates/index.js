@@ -15,6 +15,11 @@
  */
 
 import { waLink } from "../htmlBuilder.js";
+import { buildFashionHTML } from "./fashion.js";
+import { buildAcademiaHTML } from "./academia.js";
+import { buildFarmaciaFull } from "./farmacia.js";
+import { buildImobiliariaHTML } from "./imobiliaria.js";
+import { buildClinicaHTML } from "./clinica.js";
 
 // ── Niche design tokens ───────────────────────────────────────────────────────
 
@@ -104,6 +109,57 @@ const FOOD_CONFIGS = {
     deliveryLabel: "Entrega",
     heroTagline: "Feito com amor, todo dia.",
   },
+  "Lanchonete": {
+    bg: "#0D0D0D", surface: "#161616", surface2: "#1F1F1F",
+    primary: "#EA580C", primaryHover: "#C2410C",
+    accent: "#FCD34D", accentFg: "#0D0D0D",
+    text: "#FFFFFF", muted: "rgba(255,255,255,.56)",
+    border: "rgba(255,255,255,.07)",
+    gradHero: "linear-gradient(to right, rgba(13,13,13,.96) 0%, rgba(13,13,13,.75) 50%, rgba(13,13,13,.22) 100%)",
+    glowColor: "rgba(234,88,12,.35)",
+    font: "'Bebas Neue', Impact, sans-serif",
+    bodyFont: "'Source Sans 3', system-ui, sans-serif",
+    googleFonts: "https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Source+Sans+3:wght@300;400;500;600;700&display=swap",
+    emoji: "🥪",
+    orderCta: "Pedir Agora",
+    menuLabel: "Cardápio",
+    deliveryLabel: "Delivery",
+    heroTagline: "Rápido, gostoso e sem frescura.",
+  },
+  "Cafeteria": {
+    bg: "#1C0F08", surface: "#281608", surface2: "#321E0D",
+    primary: "#D97706", primaryHover: "#B45309",
+    accent: "#FDE68A", accentFg: "#1C0F08",
+    text: "#FFF8F0", muted: "rgba(255,248,240,.58)",
+    border: "rgba(255,248,240,.08)",
+    gradHero: "linear-gradient(135deg, rgba(28,15,8,.96) 0%, rgba(45,25,10,.85) 60%, rgba(217,119,6,.3) 100%)",
+    glowColor: "rgba(217,119,6,.35)",
+    font: "'Playfair Display', Georgia, serif",
+    bodyFont: "'Lato', system-ui, sans-serif",
+    googleFonts: "https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=Lato:wght@300;400;700&display=swap",
+    emoji: "☕",
+    orderCta: "Fazer Pedido",
+    menuLabel: "Cardápio",
+    deliveryLabel: "Entrega",
+    heroTagline: "O melhor café da sua cidade.",
+  },
+  "Açaíteria": {
+    bg: "#0F0718", surface: "#1A0D2A", surface2: "#24133A",
+    primary: "#7C3AED", primaryHover: "#6D28D9",
+    accent: "#EC4899", accentFg: "#FFFFFF",
+    text: "#FFFFFF", muted: "rgba(255,255,255,.58)",
+    border: "rgba(255,255,255,.08)",
+    gradHero: "linear-gradient(135deg, #4C1D95 0%, #7C3AED 50%, #EC4899 100%)",
+    glowColor: "rgba(124,58,237,.4)",
+    font: "'Pacifico', cursive",
+    bodyFont: "'Quicksand', system-ui, sans-serif",
+    googleFonts: "https://fonts.googleapis.com/css2?family=Pacifico&family=Quicksand:wght@400;500;600;700&display=swap",
+    emoji: "🍇",
+    orderCta: "Pedir Agora",
+    menuLabel: "Sabores",
+    deliveryLabel: "Delivery",
+    heroTagline: "Na tigela ou no copo — sempre especial.",
+  },
 };
 
 const PETSHOP_CONFIGS = {
@@ -140,30 +196,33 @@ function findSectionInSite(site, types) {
 }
 
 function getFirstImage(site) {
-  const imgs = [];
-  const gallery = findSectionInSite(site, ["image_gallery", "image_grid"]);
-  for (const img of (gallery?.data?.images || [])) {
-    if (img?.url) imgs.push(img.url);
-    if (imgs.length >= 1) break;
+  return getAllImages(site, 1)[0] || null;
+}
+
+/** Collect up to `max` unique Pexels/image URLs from all sections in the site. */
+function getAllImages(site, max = 8) {
+  const urls = [];
+  const seen = new Set();
+  function push(url) {
+    if (!url || seen.has(url)) return;
+    seen.add(url); urls.push(url);
   }
-  if (!imgs.length) {
-    const mf = findSectionInSite(site, ["menu_featured"]);
-    for (const item of (mf?.data?.featured_items || [])) {
-      const url = item?.image?.url;
-      if (url) { imgs.push(url); break; }
-    }
-  }
-  if (!imgs.length) {
-    const mc = findSectionInSite(site, ["menu_categories"]);
-    for (const cat of (mc?.data?.categories || [])) {
-      for (const item of (cat.items || [])) {
-        const url = item?.image?.url;
-        if (url) { imgs.push(url); break; }
+  for (const page of (site.content?.pages || [])) {
+    for (const s of (page.sections || [])) {
+      for (const img of (s.data?.images || [])) push(img?.url);
+      for (const item of (s.data?.featured_items || [])) {
+        push(item?.image?.url || (typeof item?.image === "string" ? item.image : null));
       }
-      if (imgs.length) break;
+      for (const cat of (s.data?.categories || [])) {
+        for (const item of (cat.items || [])) {
+          push(item?.image?.url || (typeof item?.image === "string" ? item.image : null));
+        }
+      }
+      if (urls.length >= max) break;
     }
+    if (urls.length >= max) break;
   }
-  return imgs[0] || null;
+  return urls.slice(0, max);
 }
 
 function getMenuDataFromSite(site) {
@@ -213,7 +272,15 @@ function buildFoodHTML(site, cfg) {
   const heroContent = getHeroContent(site);
   const testimonials = getTestimonialsFromSite(site);
   const placesData   = site.content?.placesData || null;
-  const heroImg  = getFirstImage(site);
+  const heroImg     = getFirstImage(site);
+  const galleryImgs = getAllImages(site, 8);
+  // Duplicate images so carousel/strip always has enough frames
+  const heroSlides  = galleryImgs.length
+    ? (galleryImgs.length < 3 ? [...galleryImgs, ...galleryImgs, ...galleryImgs] : galleryImgs).slice(0, 8)
+    : [];
+  const stripImgs   = galleryImgs.length
+    ? [...galleryImgs, ...galleryImgs, ...galleryImgs].slice(0, 18)
+    : [];
   const logoImg  = (site.images || []).find(i => i.type === "logo");
   const siteId   = site.id || "";
   const ratingBadge = placesData?.rating
@@ -316,9 +383,17 @@ a{color:inherit;text-decoration:none}
 
 /* ── Hero ── */
 .fhero{position:relative;min-height:100vh;display:flex;align-items:center;overflow:hidden;background:var(--bg)}
+/* Hero carousel — fullscreen crossfading slides with Ken Burns */
+.fhero-slides{position:absolute;inset:0;z-index:0}
+.fhero-slide{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.8s ease;will-change:transform,opacity}
+.fhero-slide.active{opacity:.52;animation:f-kb 12s ease-in-out infinite}
+@keyframes f-kb{0%{transform:scale(1) translate(0,0)}33%{transform:scale(1.07) translate(-.8%,.5%)}66%{transform:scale(1.04) translate(.6%,-.4%)}100%{transform:scale(1) translate(0,0)}}
+/* Fallback single image */
 .fhero-img-bg{position:absolute;inset:0;z-index:0}
-.fhero-img-bg img{width:100%;height:100%;object-fit:cover;opacity:.18}
+.fhero-img-bg img{width:100%;height:100%;object-fit:cover;opacity:.48;animation:f-kb 14s ease-in-out infinite}
 .fhero-grad{position:absolute;inset:0;background:${cfg.gradHero};z-index:1}
+/* Extra vignette for depth */
+.fhero-vignette{position:absolute;inset:0;z-index:1;background:radial-gradient(ellipse 120% 100% at 30% 50%,transparent 35%,rgba(0,0,0,.65) 100%)}
 .fhero-inner{position:relative;z-index:2;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;max-width:1200px;margin:0 auto;padding:140px 48px 100px;width:100%}
 .fhero-text{}
 .fhero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:100px;padding:7px 18px;font-size:12px;font-weight:700;color:#fff;margin-bottom:24px;backdrop-filter:blur(8px);letter-spacing:.06em;text-transform:uppercase}
@@ -527,6 +602,22 @@ a{color:inherit;text-decoration:none}
 .fwa-float:hover{transform:scale(1.1)}
 @keyframes wa-pulse{0%,100%{box-shadow:0 4px 32px rgba(37,211,102,.5)}50%{box-shadow:0 4px 52px rgba(37,211,102,.85)}}
 
+/* ── Infinite photo strip ── */
+.fstrip{overflow:hidden;background:var(--surface);border-top:1px solid var(--bdr);border-bottom:1px solid var(--bdr);padding:0;height:220px;position:relative}
+.fstrip::before,.fstrip::after{content:"";position:absolute;top:0;bottom:0;width:120px;z-index:2;pointer-events:none}
+.fstrip::before{left:0;background:linear-gradient(to right,var(--surface),transparent)}
+.fstrip::after{right:0;background:linear-gradient(to left,var(--surface),transparent)}
+.fstrip-track{display:flex;gap:10px;width:max-content;animation:fstrip-scroll 40s linear infinite;padding:10px 5px}
+.fstrip-track:hover{animation-play-state:paused}
+.fstrip-img{width:300px;height:200px;object-fit:cover;border-radius:12px;flex-shrink:0;transition:transform .4s,filter .4s;filter:brightness(.88) saturate(1.1)}
+.fstrip-img:hover{transform:scale(1.04);filter:brightness(1) saturate(1.3)}
+@keyframes fstrip-scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+/* Pause on reduced motion */
+@media(prefers-reduced-motion:reduce){.fstrip-track{animation:none}.fhero-slide.active{animation:none}}
+
+/* ── Nav scroll shadow ── */
+.fnav.scrolled{box-shadow:0 4px 32px rgba(0,0,0,.45)}
+
 /* ── SR animations ── */
 .sr-up{opacity:0;transform:translateY(32px)}
 .sr-fade{opacity:0}
@@ -568,8 +659,13 @@ a{color:inherit;text-decoration:none}
 
 <!-- Hero -->
 <section class="fhero" id="inicio">
-  ${heroImg ? `<div class="fhero-img-bg"><img src="${heroImg}" alt="${site.business_name}" loading="eager"></div>` : ""}
+  ${heroSlides.length > 1
+    ? `<div class="fhero-slides" id="fhero-slides">${heroSlides.map((url, i) => `<div class="fhero-slide${i===0?" active":""}" style="background-image:url('${url}')"></div>`).join("")}</div>`
+    : heroImg
+      ? `<div class="fhero-img-bg"><img src="${heroImg}" alt="${site.business_name}" loading="eager"></div>`
+      : ""}
   <div class="fhero-grad"></div>
+  <div class="fhero-vignette"></div>
   <div class="fhero-inner">
     <div class="fhero-text">
       <div class="fhero-badge"><span>${cfg.emoji}</span><span>${site.niche}${location ? ` · ${location}` : ""}${ratingBadge ? ` · ${ratingBadge}` : ""}</span></div>
@@ -597,6 +693,15 @@ a{color:inherit;text-decoration:none}
 ${highlightItems ? `<div class="fhl"><div class="fhl-inner">${highlightItems}</div></div>` : ""}
 
 ${ratingBadge ? `<div class="frating-bar"><p><span>⭐ ${placesData?.rating?.toFixed(1)}</span> no Google &nbsp;·&nbsp; ${placesData?.totalRatings?.toLocaleString("pt-BR")} avaliações &nbsp;·&nbsp; ${location}</p></div>` : location ? `<div class="frating-bar"><p>${location} · Peça já pelo WhatsApp</p></div>` : ""}
+
+<!-- Photo Strip (infinite auto-scroll) -->
+${stripImgs.length >= 4 ? `
+<div class="fstrip">
+  <div class="fstrip-track">
+    ${stripImgs.map(url => `<img class="fstrip-img" src="${url}" alt="${site.business_name}" loading="lazy">`).join("")}
+  </div>
+</div>
+` : ""}
 
 <!-- Menu -->
 ${menuHtml ? `
@@ -1010,6 +1115,28 @@ var FCart = (function() {
   return { open, close, add, inc, dec, setType, maskCep, lookupCep, sendWA, payStripe };
 })();
 
+// ── Nav scroll shadow ────────────────────────────────────────────────────────
+(function() {
+  var nav = document.querySelector(".fnav");
+  if (!nav) return;
+  window.addEventListener("scroll", function() {
+    nav.classList.toggle("scrolled", window.scrollY > 30);
+  }, { passive: true });
+})();
+
+// ── Hero image carousel ───────────────────────────────────────────────────────
+(function() {
+  var slides = document.querySelectorAll(".fhero-slide");
+  if (slides.length <= 1) return;
+  var cur = 0;
+  function next() {
+    slides[cur].classList.remove("active");
+    cur = (cur + 1) % slides.length;
+    slides[cur].classList.add("active");
+  }
+  setInterval(next, 5500);
+})();
+
 // ── GSAP Animations ──────────────────────────────────────────────────────────
 window.addEventListener("load", function() {
   if (typeof gsap === "undefined") return;
@@ -1019,42 +1146,104 @@ window.addEventListener("load", function() {
 
   // Lenis smooth scroll
   if (typeof Lenis !== "undefined") {
-    var lenis = new Lenis();
+    var lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
     function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
     requestAnimationFrame(raf);
+    // Sync Lenis with ScrollTrigger
+    if (typeof ScrollTrigger !== "undefined") {
+      lenis.on("scroll", ScrollTrigger.update);
+    }
+  }
+
+  // Hero parallax — slides & fallback bg scroll at 40% speed
+  var heroEl = document.querySelector(".fhero");
+  var heroBg = document.querySelector(".fhero-slides") || document.querySelector(".fhero-img-bg");
+  if (heroEl && heroBg && typeof ScrollTrigger !== "undefined") {
+    gsap.to(heroBg, {
+      yPercent: 28,
+      ease: "none",
+      scrollTrigger: { trigger: heroEl, start: "top top", end: "bottom top", scrub: true }
+    });
+  }
+
+  // Hero floating circle — subtle parallax
+  var heroVis = document.querySelector(".fhero-visual");
+  if (heroVis && typeof ScrollTrigger !== "undefined") {
+    gsap.to(heroVis, {
+      yPercent: -18,
+      ease: "none",
+      scrollTrigger: { trigger: heroEl, start: "top top", end: "bottom top", scrub: true }
+    });
   }
 
   // Hero word split
   var h1 = document.querySelector("[data-split-words]");
   if (h1) {
     var words = h1.textContent.trim().split(/\\s+/);
-    h1.innerHTML = words.map(function(w) { return '<span style="display:inline-block;overflow:hidden"><span class="hw" style="display:inline-block">' + w + '</span></span>'; }).join(" ");
-    gsap.from(".hw", { y: "100%", duration: 0.8, stagger: 0.06, ease: "power3.out", delay: 0.3 });
+    h1.innerHTML = words.map(function(w) {
+      return '<span style="display:inline-block;overflow:hidden"><span class="hw" style="display:inline-block">' + w + "</span></span>";
+    }).join(" ");
+    gsap.from(".hw", { y: "105%", duration: 0.9, stagger: 0.07, ease: "power4.out", delay: 0.25 });
   }
 
-  // Hero fade-ins
-  gsap.from(".fhero-badge", { opacity: 0, y: 20, duration: 0.6, delay: 0.2, ease: "power2.out" });
-  gsap.from(".fhero-sub", { opacity: 0, y: 20, duration: 0.6, delay: 0.9, ease: "power2.out" });
-  gsap.from(".fhero-btns", { opacity: 0, y: 20, duration: 0.6, delay: 1.1, ease: "power2.out" });
-  gsap.from(".fhero-meta", { opacity: 0, y: 16, duration: 0.5, delay: 1.3, ease: "power2.out" });
-  gsap.from(".fhero-visual", { opacity: 0, scale: 0.88, duration: 0.9, delay: 0.5, ease: "power2.out" });
+  // Hero fade-ins — staggered entrance
+  gsap.from(".fhero-badge", { opacity: 0, y: 24, duration: 0.6, delay: 0.15, ease: "power2.out" });
+  gsap.from(".fhero-sub",   { opacity: 0, y: 22, duration: 0.6, delay: 0.85, ease: "power2.out" });
+  gsap.from(".fhero-btns",  { opacity: 0, y: 20, duration: 0.6, delay: 1.05, ease: "power2.out" });
+  gsap.from(".fhero-meta",  { opacity: 0, y: 16, duration: 0.5, delay: 1.25, ease: "power2.out" });
+  gsap.from(".fhero-visual",{ opacity: 0, scale: 0.82, duration: 1.0, delay: 0.4, ease: "power3.out" });
+
+  // Highlight bar items
+  gsap.from(".fhl-item", { opacity: 0, x: -18, duration: 0.5, stagger: 0.08, delay: 0.1, ease: "power2.out",
+    scrollTrigger: { trigger: ".fhl", start: "top 95%", toggleActions: "play none none none" }
+  });
+
+  // Section titles
+  gsap.utils.toArray(".fsec-title").forEach(function(el) {
+    var words = el.textContent.trim().split(/\\s+/);
+    el.innerHTML = words.map(function(w) {
+      return '<span style="display:inline-block;overflow:hidden;vertical-align:top"><span class="st-w" style="display:inline-block">' + w + "</span></span>";
+    }).join(" ");
+    gsap.from(el.querySelectorAll(".st-w"), { y: "100%", duration: 0.7, stagger: 0.05, ease: "power3.out",
+      scrollTrigger: { trigger: el, start: "top 88%", toggleActions: "play none none none" }
+    });
+  });
 
   // Scroll reveals
   gsap.utils.toArray(".sr-up").forEach(function(el) {
-    gsap.from(el, { opacity: 0, y: 36, duration: 0.7, ease: "power2.out",
+    gsap.from(el, { opacity: 0, y: 40, duration: 0.75, ease: "power2.out",
       scrollTrigger: { trigger: el, start: "top 88%", toggleActions: "play none none none" }
     });
   });
   gsap.utils.toArray(".sr-fade").forEach(function(el) {
-    gsap.from(el, { opacity: 0, duration: 0.7, ease: "power2.out",
+    gsap.from(el, { opacity: 0, duration: 0.8, ease: "power2.out",
       scrollTrigger: { trigger: el, start: "top 88%", toggleActions: "play none none none" }
     });
   });
 
-  // Stagger menu cards
-  gsap.utils.toArray(".ffeat-card, .fitem-card").forEach(function(el, i) {
-    gsap.from(el, { opacity: 0, y: 28, duration: 0.55, delay: i * 0.04, ease: "power2.out",
-      scrollTrigger: { trigger: el, start: "top 92%", toggleActions: "play none none none" }
+  // Stagger menu cards — batch by viewport
+  gsap.utils.toArray(".ffeat-card").forEach(function(el, i) {
+    gsap.from(el, { opacity: 0, y: 40, scale: 0.94, duration: 0.6, delay: (i % 4) * 0.08, ease: "power2.out",
+      scrollTrigger: { trigger: el, start: "top 93%", toggleActions: "play none none none" }
+    });
+  });
+  gsap.utils.toArray(".fitem-card").forEach(function(el, i) {
+    gsap.from(el, { opacity: 0, x: i % 2 === 0 ? -24 : 24, duration: 0.55, delay: (i % 6) * 0.05, ease: "power2.out",
+      scrollTrigger: { trigger: el, start: "top 94%", toggleActions: "play none none none" }
+    });
+  });
+
+  // Testimonial cards
+  gsap.utils.toArray(".ftesti-card").forEach(function(el, i) {
+    gsap.from(el, { opacity: 0, y: 32, duration: 0.65, delay: i * 0.12, ease: "power2.out",
+      scrollTrigger: { trigger: el, start: "top 90%", toggleActions: "play none none none" }
+    });
+  });
+
+  // Location rows
+  gsap.utils.toArray(".floc-row").forEach(function(el, i) {
+    gsap.from(el, { opacity: 0, x: 28, duration: 0.55, delay: i * 0.1, ease: "power2.out",
+      scrollTrigger: { trigger: el, start: "top 90%", toggleActions: "play none none none" }
     });
   });
 });
@@ -1173,8 +1362,29 @@ const NICHE_TEMPLATES = {
   "Padaria":              (site) => buildFoodHTML(site, FOOD_CONFIGS["Padaria"]),
   "Clínica Veterinária":  (site) => buildPetshopHTML(site, PETSHOP_CONFIGS["Clínica Veterinária"]),
   "Pet Shop":             (site) => buildPetshopHTML(site, PETSHOP_CONFIGS["Pet Shop"]),
-  "Farmácia":             (site) => buildFarmaciaHTML(site, FARMACIA_CONFIGS["Farmácia"]),
-  "Drogaria":             (site) => buildFarmaciaHTML(site, FARMACIA_CONFIGS["Drogaria"]),
+  "Moda":                 (site) => buildFashionHTML(site),
+  "Loja de Roupas":       (site) => buildFashionHTML(site),
+  "Boutique":             (site) => buildFashionHTML(site),
+  "Brechó":               (site) => buildFashionHTML(site),
+  "Academia":                  (site) => buildAcademiaHTML(site),
+  "Academia / Studio Fitness": (site) => buildAcademiaHTML(site),
+  "Fitness":                   (site) => buildAcademiaHTML(site),
+  "Studio Fitness":            (site) => buildAcademiaHTML(site),
+  "Crossfit":             (site) => buildAcademiaHTML(site),
+  "Gym":                  (site) => buildAcademiaHTML(site),
+  "Pilates":              (site) => buildAcademiaHTML(site),
+  "Farmácia":             (site) => buildFarmaciaFull(site),
+  "Drogaria":             (site) => buildFarmaciaFull(site),
+  "Imobiliária":          (site) => buildImobiliariaHTML(site),
+  "Corretor":             (site) => buildImobiliariaHTML(site),
+  "Clínica Odontológica": (site) => buildClinicaHTML(site),
+  "Clínica Médica":       (site) => buildClinicaHTML(site),
+  "Clínica de Fisioterapia": (site) => buildClinicaHTML(site),
+  "Consultório de Nutrição": (site) => buildClinicaHTML(site),
+  "Clínica de Estética":  (site) => buildClinicaHTML(site),
+  "Lanchonete":           (site) => buildFoodHTML(site, FOOD_CONFIGS["Lanchonete"]),
+  "Cafeteria":            (site) => buildFoodHTML(site, FOOD_CONFIGS["Cafeteria"]),
+  "Açaíteria":            (site) => buildFoodHTML(site, FOOD_CONFIGS["Açaíteria"]),
 };
 
 /**

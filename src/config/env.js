@@ -22,6 +22,8 @@ const OPTIONAL = {
   STRIPE_SECRET_KEY:                "",
   STRIPE_WEBHOOK_SECRET:            "",
   STRIPE_ECOMMERCE_WEBHOOK_SECRET:  "",
+  RESEND_API_KEY:                   "",
+  RESEND_FROM_EMAIL:                "pedidos@forgesites.app",
   STRIPE_PRICE_BASIC:               "",
   STRIPE_PRICE_PRO:                 "",
   DOMAIN_PROVIDER:         "namecheap",         // namecheap | cloudflare

@@ -9,6 +9,7 @@ import Stripe from "stripe";
 import { env } from "../config/env.js";
 import { getAdminClient } from "../saas/db.js";
 import { calcDeliveryFee } from "./delivery.js";
+import { sendOrderNotification } from "./emailService.js";
 import logger from "../utils/logger.js";
 import { BusinessError, NotFoundError, ServiceUnavailableError } from "../utils/errors.js";
 
@@ -342,10 +343,12 @@ export function parseEcommerceWebhook(rawBody, signature) {
  */
 export async function handleOrderPaid(session) {
   if (session.metadata?.type !== "ecommerce") return;
-  const { orderId } = session.metadata || {};
+  const { orderId, siteId } = session.metadata || {};
   if (!orderId) return;
 
   const db = getAdminClient();
+
+  // Update order to paid
   await db.from("orders").update({
     status:                 "paid",
     stripe_payment_intent:  session.payment_intent,
@@ -356,6 +359,43 @@ export async function handleOrderPaid(session) {
   }).eq("id", orderId);
 
   logger.info("Order marked as paid", { orderId, sessionId: session.id });
+
+  // Send email notification to business owner (fire-and-forget)
+  try {
+    // Fetch order + items + site owner email
+    const [orderRes, itemsRes, siteRes] = await Promise.all([
+      db.from("orders").select("*").eq("id", orderId).single(),
+      db.from("order_items").select("*").eq("order_id", orderId),
+      siteId
+        ? db.from("sites")
+            .select("business_name, user_id")
+            .eq("id", siteId)
+            .single()
+        : Promise.resolve({ data: null }),
+    ]);
+
+    const order = orderRes.data;
+    const items = itemsRes.data || [];
+    const site  = siteRes.data;
+
+    if (order && site?.user_id) {
+      // Get owner email from auth.users via admin API
+      const { data: userData } = await db.auth.admin.getUserById(site.user_id).catch(() => ({ data: null }));
+      const ownerEmail = userData?.user?.email;
+
+      if (ownerEmail) {
+        await sendOrderNotification({
+          ownerEmail,
+          businessName: site.business_name || "Seu negócio",
+          order,
+          items,
+        });
+      }
+    }
+  } catch (err) {
+    // Email failure must never break webhook handling
+    logger.warn("Order email notification failed", { orderId, error: err.message });
+  }
 }
 
 /**
