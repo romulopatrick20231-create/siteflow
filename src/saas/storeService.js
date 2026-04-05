@@ -10,6 +10,7 @@
  */
 
 import { getAdminClient } from "./db.js";
+import { emitToStore }    from "./socketService.js";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -216,10 +217,12 @@ export async function createOrder(body) {
     if (rxErr) throw new Error(`savePrescription: ${rxErr.message}`);
   }
 
-  return {
-    ...order,
-    items: orderItems,
-  };
+  const fullOrder = { ...order, items: orderItems };
+
+  // ── Tempo real: notifica lojistas na room da loja ────────────────────────────
+  emitToStore(storeId, 'new_order', fullOrder);
+
+  return fullOrder;
 }
 
 /**
@@ -263,6 +266,9 @@ export async function updateOrderStatus(orderId, newStatus, requestedByStoreId) 
 
     message = STATUS_MESSAGES[store?.type]?.delivering ?? null;
   }
+
+  // ── Tempo real: notifica lojistas e clientes na room da loja ─────────────────
+  emitToStore(order.store_id, 'order_update', { order, message });
 
   return { order, message };
 }
