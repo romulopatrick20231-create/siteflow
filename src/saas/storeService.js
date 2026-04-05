@@ -9,8 +9,12 @@
  *   - Order status transitions with event messages
  */
 
-import { getAdminClient } from "./db.js";
-import { emitToStore }    from "./socketService.js";
+import { getAdminClient }       from "./db.js";
+import { emitToStore }           from "./socketService.js";
+import {
+  sendOrderConfirmation,
+  sendOrderStatus,
+} from "../services/whatsappService.js";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -222,6 +226,9 @@ export async function createOrder(body) {
   // ── Tempo real: notifica lojistas na room da loja ────────────────────────────
   emitToStore(storeId, 'new_order', fullOrder);
 
+  // ── WhatsApp: confirmação para o cliente (não trava o pedido se falhar) ──────
+  sendOrderConfirmation(fullOrder).catch(() => {});
+
   return fullOrder;
 }
 
@@ -255,20 +262,28 @@ export async function updateOrderStatus(orderId, newStatus, requestedByStoreId) 
   }
 
   // ── Event message ────────────────────────────────────────────────────────────
-  let message = null;
+  let message    = null;
+  let storeType  = null;
+
   if (newStatus === 'delivering') {
-    // Load store type to pick the right message
+    // Load store type (necessário para mensagem de evento + WhatsApp)
     const { data: store } = await db
       .from('stores')
       .select('type')
       .eq('id', order.store_id)
       .single();
 
-    message = STATUS_MESSAGES[store?.type]?.delivering ?? null;
+    storeType = store?.type ?? null;
+    message   = STATUS_MESSAGES[storeType]?.delivering ?? null;
   }
 
   // ── Tempo real: notifica lojistas e clientes na room da loja ─────────────────
   emitToStore(order.store_id, 'order_update', { order, message });
+
+  // ── WhatsApp: avisa cliente que saiu para entrega (não trava se falhar) ───────
+  if (newStatus === 'delivering' && order.customer_phone) {
+    sendOrderStatus(order, storeType).catch(() => {});
+  }
 
   return { order, message };
 }

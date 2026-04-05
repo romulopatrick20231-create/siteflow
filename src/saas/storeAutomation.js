@@ -13,6 +13,7 @@
  */
 
 import { getAdminClient } from './db.js';
+import { sendFollowUp }   from '../services/whatsappService.js';
 
 const PENDING_FOLLOWUP_MINUTES = 30;
 const REACTIVATION_DAYS        = 7;
@@ -65,6 +66,21 @@ export async function markFollowupSent(orderId, storeId, type) {
     .upsert({ order_id: orderId, store_id: storeId, type }, { onConflict: 'order_id,type' });
 
   if (error) throw new Error(`markFollowupSent: ${error.message}`);
+
+  // ── WhatsApp: follow-up para o cliente (não trava se falhar) ─────────────────
+  if (type === 'pending_30min') {
+    // Busca dados do pedido para montar a mensagem
+    const { data: order } = await db
+      .from('store_orders')
+      .select('id, customer_name, customer_phone')
+      .eq('id', orderId)
+      .single();
+
+    if (order?.customer_phone) {
+      sendFollowUp(order).catch(() => {});
+    }
+  }
+
   return { recorded: true };
 }
 
