@@ -728,6 +728,9 @@ export function buildHTML(site) {
   const location  = [site.neighborhood, site.city].filter(Boolean).join(", ");
   const logoImg   = (site.images || []).find(i => i.type === "logo");
 
+  // Google Places real data (injected by enrichLeadWithPlaces during generation)
+  const placesData = site.content?.placesData || null;
+
   // Content: prefer rich AI pages, fall back to flat
   const richHero  = findSection(site, ["hero", "hero_statement", "hero_story", "hero_social_proof"]);
   const headline  = richHero?.data?.headline  || flat.headline  || `${site.business_name} — ${site.niche}`;
@@ -738,9 +741,30 @@ export function buildHTML(site) {
 
   // Rich sections
   const svcItems    = getServicesItems(site);
-  const stats       = getStats(site);
+  const aiStats     = getStats(site);
   const galleryImgs = getGalleryImages(site);
   const richTestis  = getRichTestimonials(site) || flat.depoimentos;
+
+  // Google Places fallbacks — creates natural variation between sites
+  const googleTestis = (!richTestis?.length && placesData?.reviews?.length)
+    ? placesData.reviews.map(r => ({ nome: r.nome, texto: r.texto }))
+    : null;
+  const testiSource = richTestis?.length ? richTestis : (googleTestis || null);
+
+  // Supplement stats with Google data when AI didn't generate any
+  const stats = aiStats.length ? aiStats : (
+    (placesData?.rating && placesData?.totalRatings)
+      ? [
+          { value: `${placesData.rating.toFixed(1)}★`, label: "Nota no Google" },
+          { value: `${placesData.totalRatings}+`, label: "Avaliações" },
+        ]
+      : []
+  );
+
+  // Google rating text for proof bar and hero badge
+  const ratingBadge = placesData?.rating
+    ? `⭐ ${placesData.rating.toFixed(1)} no Google${placesData.totalRatings ? ` · ${placesData.totalRatings.toLocaleString("pt-BR")} avaliações` : ""}`
+    : "";
 
   const hasProducts   = (site.products || []).filter(p => p.is_active !== false).length > 0;
   const hasDiffs      = (flat.diferenciais || []).length > 0;
@@ -757,10 +781,16 @@ export function buildHTML(site) {
   const contentProds  = getContentProducts(site);
   const locationData  = menuData.location;
   const highlightData = menuData.highlight;
-  const pricingData   = getPricingTable(site);
-  const isRestaurante = ["Restaurante","Pizzaria","Padaria","Hamburgueria"].includes(site.niche);
-  const isPetshop     = site.niche === "Clínica Veterinária" || site.niche?.toLowerCase().includes("pet");
-  const isImobiliaria = site.niche === "Imobiliária";
+
+  // Fall back to Google Places hours if AI didn't generate a location section
+  const placesLocationData = (!locationData && placesData?.hours)
+    ? { hours: placesData.hours, address: site.address || placesData?.address || null, city: site.city || null }
+    : null;
+  const effectiveLocation = locationData || placesLocationData;
+
+  const isRestaurante  = ["Restaurante","Pizzaria","Padaria","Hamburgueria"].includes(site.niche);
+  // Hamburgueria = intentionally dark (craft premium); others = vibrant primary color hero
+  const isHamburgueria = site.niche === "Hamburgueria";
 
   // Detect extra section types for smart nav
   const allSections = (site.content?.pages || []).flatMap(p => p.sections || []);
@@ -789,8 +819,8 @@ export function buildHTML(site) {
     { label: "Planos",          href: "#planos",           show: hasPricing },
     { label: "Resultados",      href: "#resultados",       show: hasResults },
     { label: "Galeria",         href: "#galeria",          show: galleryImgs.length > 0 },
-    { label: "Localização",     href: "#localizacao",      show: !!locationData },
-    { label: "Depoimentos",     href: "#depoimentos",      show: !!(richTestis?.length) },
+    { label: "Localização",     href: "#localizacao",      show: !!effectiveLocation },
+    { label: "Depoimentos",     href: "#depoimentos",      show: !!(testiSource?.length) },
     { label: "Contato",         href: "#contato",          always: true },
   ];
   const navLinks = NAV_ITEMS
@@ -865,7 +895,10 @@ export function buildHTML(site) {
     .btn-wa-hero{font-size:16px;padding:18px 36px;border-radius:12px}
     .hero-food .btn-wa-hero{font-size:17px;padding:20px 44px;border-radius:12px;letter-spacing:.02em}
     /* ── Food hero split layout ── */
-    .hero-food{background:var(--pd)}
+    /* Default: vibrant primary bg (Pizzaria=bold red, Padaria=warm brown, Restaurante=amber) */
+    .hero-food{background:var(--p)}
+    /* Hamburgueria override: intentionally dark craft aesthetic */
+    .hero-food-dark{background:var(--pd)}
     .hero-food .hero-gradient{background:linear-gradient(to right,rgba(0,0,0,.72) 0%,rgba(0,0,0,.42) 45%,rgba(0,0,0,.08) 100%)}
     .hero-food .hero-slide.active{opacity:.22}
     .hero-food-inner{display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;max-width:1240px;margin:0 auto;padding:136px 48px 100px;position:relative;z-index:3}
@@ -895,7 +928,8 @@ export function buildHTML(site) {
     .nav-mobile-dark .nav-link:hover{background:rgba(255,255,255,.06);color:#fff}
     /* ── Proof bar ── */
     .proof-bar{background:var(--muted);border-bottom:1px solid var(--bdr);padding:14px 24px;text-align:center}
-    .proof-bar p{font-size:13px;font-weight:600;color:var(--fg);letter-spacing:.01em}
+    .proof-bar p{font-size:13px;font-weight:700;color:var(--fg);letter-spacing:.01em}
+    .proof-bar p span.rating{color:var(--primary);font-weight:800}
     /* ── Stats ── */
     .stats-section{background:var(--primary);padding:80px 24px;position:relative;overflow:hidden}
     .stats-section::before{content:"";position:absolute;top:-1px;left:0;right:0;height:64px;background:inherit;clip-path:polygon(0 0,100% 0,100% 100%,0 30%)}
@@ -1300,12 +1334,12 @@ export function buildHTML(site) {
 </div>
 
 ${isRestaurante ? `
-<section class="hero hero-food" id="inicio">
+<section class="hero hero-food${isHamburgueria ? " hero-food-dark" : ""}" id="inicio">
   ${heroImgs.length > 1 ? `<div class="hero-slides">${heroImgs.slice(1).map((url,i) => `<div class="hero-slide${i===0?" active":""}" style="background-image:url('${url}')"></div>`).join("")}</div>` : ""}
   <div class="hero-gradient" data-parallax></div>
   <div class="hero-food-inner">
     <div class="hero-text-left">
-      <div class="hero-badge"><span>${d.emoji}</span><span>${site.niche}${location ? ` · ${location}` : ""}</span></div>
+      <div class="hero-badge"><span>${d.emoji}</span><span>${site.niche}${location ? ` · ${location}` : ""}${ratingBadge ? ` · ${ratingBadge}` : ""}</span></div>
       <h1 data-split-words>${headline}</h1>
       <p>${heroCopy}</p>
       <div class="hero-btns">
@@ -1330,7 +1364,7 @@ ${isRestaurante ? `
   <div class="hero-orb hero-orb-1"></div>
   <div class="hero-orb hero-orb-2"></div>
   <div class="hero-inner">
-    <div class="hero-badge"><span>${d.emoji}</span><span>${site.niche}${location ? ` · ${location}` : ""}</span></div>
+    <div class="hero-badge"><span>${d.emoji}</span><span>${site.niche}${location ? ` · ${location}` : ""}${ratingBadge ? ` · ${ratingBadge}` : ""}</span></div>
     <h1 data-split-words>${headline}</h1>
     <p>${heroCopy}</p>
     <div class="hero-btns">
@@ -1341,7 +1375,7 @@ ${isRestaurante ? `
 </section>
 `}
 
-${location ? `<div class="proof-bar"><p>${copy.proofBar.replace("{city}", location)}</p></div>` : ""}
+${(location || ratingBadge) ? `<div class="proof-bar"><p>${[ratingBadge, location ? copy.proofBar.replace("{city}", location) : ""].filter(Boolean).join(" · ")}</p></div>` : ""}
 
 ${highlightData ? renderHighlightBar(highlightData) : ""}
 
@@ -1363,7 +1397,7 @@ ${galleryImgs.length > 0 ? renderGallery(galleryImgs, copy) : ""}
 
 ${hasDiffs ? renderDiferenciais(flat.diferenciais) : ""}
 
-${renderTestimonials(richTestis, copy, isRestaurante)}
+${renderTestimonials(testiSource, copy, isRestaurante)}
 
 ${hasAbout ? `<section class="about-section" id="sobre">
 <div class="wrap">
@@ -1375,7 +1409,7 @@ ${hasAbout ? `<section class="about-section" id="sobre">
 </div>
 </section>` : ""}
 
-${locationData ? renderLocationHours(locationData, wa, site.business_name) : ""}
+${effectiveLocation ? renderLocationHours(effectiveLocation, wa, site.business_name) : ""}
 
 <section class="cta-section" id="contato">
   <div class="wrap">
