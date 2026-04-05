@@ -564,7 +564,7 @@ function renderStepsCta(section, wa) {
   const cards = steps.map((step, i) => `<div class="step-card sr-up">
   <div class="step-num">${step.step || i + 1}</div>
   ${step.icon ? `<div class="step-icon">${step.icon}</div>` : ""}
-  <h3 class="step-title">${step.title || ""}</h3>
+  <h3 class="step-title">${step.title || step.label || ""}</h3>
   <p class="step-desc">${step.description || ""}</p>
 </div>`).join("");
   return `<section class="steps-section" id="como-funciona">
@@ -632,7 +632,7 @@ function renderBeforeAfter(section, copy) {
 
 function renderPricingFull(section, wa) {
   const d = section.data || {};
-  const tiers = (d.tiers || []).slice(0, 4);
+  const tiers = (d.plans || d.tiers || []).slice(0, 4);
   if (!tiers.length) return "";
   const cards = tiers.map(tier => {
     const features = (tier.features || []).slice(0, 8);
@@ -853,7 +853,7 @@ export function buildHTML(site) {
     .hero-slides{position:absolute;inset:0;z-index:0}
     .hero-slide{position:absolute;inset:0;background-size:cover;background-position:center;opacity:0;transition:opacity 1.2s ease}
     .hero-slide.active{opacity:.65}
-    .hero-gradient{position:absolute;inset:0;background:linear-gradient(145deg,var(--pd) 0%,var(--p) 55%,color-mix(in srgb,var(--p) 65%,#000) 100%);z-index:1}
+    .hero-gradient{position:absolute;inset:0;background:linear-gradient(145deg,rgba(0,0,0,.82) 0%,var(--p) 50%,var(--pd) 100%);z-index:1}
     .hero-orb{position:absolute;border-radius:50%;pointer-events:none;z-index:2}
     .hero-orb-1{width:600px;height:600px;top:-200px;left:-150px;background:radial-gradient(circle,rgba(255,255,255,.07) 0%,transparent 70%)}
     .hero-orb-2{width:400px;height:400px;bottom:-150px;right:-100px;background:radial-gradient(circle,rgba(255,255,255,.05) 0%,transparent 70%)}
