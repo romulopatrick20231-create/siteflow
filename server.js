@@ -20,9 +20,12 @@ import "dotenv/config";
 // Validate all required env vars on startup — crash fast if anything is missing
 import "./src/config/env.js";
 
-import express  from "express";
-import helmet   from "helmet";
-import cors     from "cors";
+import { createServer }  from "http";
+import express           from "express";
+import helmet            from "helmet";
+import cors              from "cors";
+import { Server as SocketServer } from "socket.io";
+import { init as initSocket }     from "./src/saas/socketService.js";
 
 import { env }                           from "./src/config/env.js";
 import logger                            from "./src/utils/logger.js";
@@ -46,9 +49,14 @@ import domainRouter                                  from "./src/routes/domain.j
 import adminRouter                      from "./src/routes/admin.js";
 import generateRouter                   from "./src/routes/generate.js";  // admin bulk generation (v1)
 import generateBatchRouter             from "./src/routes/generateBatch.js"; // niche-aware generation (v2)
+import storeRouter                     from "./src/routes/store.js";       // order system (public)
+import storeAdminRouter                from "./src/routes/storeAdmin.js";  // order system (admin)
+import merchantRouter                  from "./src/routes/merchant.js";    // painel do lojista
+import adminOrdersRouter               from "./src/routes/adminOrders.js"; // super admin: stores/orders/revenue
 
-// ── App setup ─────────────────────────────────────────────────────────────────
-const app = express();
+// ── App + HTTP server ─────────────────────────────────────────────────────────
+const app        = express();
+const httpServer = createServer(app);
 
 // Trust reverse proxy (Render, Railway, Fly.io) for correct req.ip / protocol
 app.set("trust proxy", 1);
@@ -84,6 +92,29 @@ app.use(cors({
   credentials: true,
   maxAge: 86400,
 }));
+
+// ── Socket.io ─────────────────────────────────────────────────────────────────
+const io = new SocketServer(httpServer, {
+  cors: {
+    origin:      allowedOrigins === "*" ? "*" : allowedOrigins,
+    methods:     ["GET", "POST"],
+    credentials: true,
+  },
+});
+
+// Lojistas entram na room da sua loja: socket.join("store:{storeId}")
+io.on("connection", (socket) => {
+  socket.on("join_store", (storeId) => {
+    if (storeId) socket.join(`store:${storeId}`);
+  });
+
+  socket.on("leave_store", (storeId) => {
+    if (storeId) socket.leave(`store:${storeId}`);
+  });
+});
+
+// Compartilha a instância com todos os serviços via singleton
+initSocket(io);
 
 // ── Stripe webhooks — RAW body MUST come before express.json() ────────────────
 // Stripe verifies the signature against the raw Buffer.
@@ -139,6 +170,10 @@ app.use("/domain",    domainRouter);
 app.use("/admin",    adminRouter);
 app.use("/generate",       generateRouter);      // admin bulk generation (v1 — legacy)
 app.use("/generate-batch", generateBatchRouter); // niche-aware generation (v2)
+app.use("/",            storeRouter);              // order system: /store/:slug, /products/:storeId, /orders
+app.use("/store-admin", storeAdminRouter);         // order system admin: stores, categories, products
+app.use("/merchant",    merchantRouter);           // painel do lojista
+app.use("/admin",       adminOrdersRouter);        // super admin: /admin/stores, /admin/orders, /admin/revenue
 
 // ── 404 — no route matched ────────────────────────────────────────────────────
 app.use((_req, res) => {
@@ -191,7 +226,7 @@ app.use((err, req, res, _next) => {
 });
 
 // ── Start server ──────────────────────────────────────────────────────────────
-const server = app.listen(env.PORT, () => {
+const server = httpServer.listen(env.PORT, () => {
   logger.info("ForgeSites API started", {
     port: env.PORT,
     env:  env.NODE_ENV,

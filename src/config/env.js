@@ -39,6 +39,11 @@ const OPTIONAL = {
   AUTH_RATE_MAX:           "10",
   AI_RATE_MAX:             "20",
   PUBLISH_RATE_MAX:        "10",
+
+  // Z-API WhatsApp (opcionais — serviço desabilitado se ausentes)
+  ZAPI_INSTANCE_ID:        "",
+  ZAPI_TOKEN:              "",
+  ZAPI_CLIENT_TOKEN:       "",
 };
 
 const missing = REQUIRED.filter(key => !process.env[key]);
