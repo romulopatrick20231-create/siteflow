@@ -15,6 +15,7 @@
  */
 
 import { getDesign, buildFontLinks, getNicheCopy } from "./designKnowledge.js";
+import { getTemplate } from "./templates/index.js";
 
 // ── Rich content extraction ───────────────────────────────────────────────────
 
@@ -179,7 +180,7 @@ function parseStatValue(val) {
 
 // ── Render helpers ────────────────────────────────────────────────────────────
 
-function waLink(phone, name) {
+export function waLink(phone, name) {
   if (!phone) return "https://wa.me/";
   const n   = phone.replace(/\D/g, "");
   const num = n.startsWith("55") ? n : `55${n}`;
@@ -720,6 +721,10 @@ function renderExtraSections(site, { wa, copy, d: design }) {
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function buildHTML(site) {
+  // Use premium niche template when available
+  const premiumTemplate = getTemplate(site.niche);
+  if (premiumTemplate) return premiumTemplate(site);
+
   const d         = getDesign(site.niche);
   const copy      = getNicheCopy(site.niche, site.city);
   const p         = d.palette;
