@@ -46,6 +46,10 @@ import domainRouter                                  from "./src/routes/domain.j
 import adminRouter                      from "./src/routes/admin.js";
 import generateRouter                   from "./src/routes/generate.js";  // admin bulk generation (v1)
 import generateBatchRouter             from "./src/routes/generateBatch.js"; // niche-aware generation (v2)
+import storeRouter                     from "./src/routes/store.js";       // order system (public)
+import storeAdminRouter                from "./src/routes/storeAdmin.js";  // order system (admin)
+import merchantRouter                  from "./src/routes/merchant.js";    // painel do lojista
+import adminOrdersRouter               from "./src/routes/adminOrders.js"; // super admin: stores/orders/revenue
 
 // ── App setup ─────────────────────────────────────────────────────────────────
 const app = express();
@@ -139,6 +143,10 @@ app.use("/domain",    domainRouter);
 app.use("/admin",    adminRouter);
 app.use("/generate",       generateRouter);      // admin bulk generation (v1 — legacy)
 app.use("/generate-batch", generateBatchRouter); // niche-aware generation (v2)
+app.use("/",            storeRouter);              // order system: /store/:slug, /products/:storeId, /orders
+app.use("/store-admin", storeAdminRouter);         // order system admin: stores, categories, products
+app.use("/merchant",    merchantRouter);           // painel do lojista
+app.use("/admin",       adminOrdersRouter);        // super admin: /admin/stores, /admin/orders, /admin/revenue
 
 // ── 404 — no route matched ────────────────────────────────────────────────────
 app.use((_req, res) => {
