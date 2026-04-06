@@ -28,6 +28,7 @@ export function validate(schema, source = "body") {
         field:   d.path.join("."),
         message: d.message.replace(/["]/g, ""),
       }));
+      console.error('[validate] VALIDATION FAILED', req.path, JSON.stringify(details));
       return next(new ValidationError("Validation failed", details));
     }
 
