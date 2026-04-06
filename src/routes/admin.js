@@ -129,9 +129,15 @@ const NICHE_NORMALIZE_MAP = {
 };
 
 function normalizeNiche(req, _res, next) {
-  if (req.body?.niche) {
-    const key = req.body.niche.toLowerCase().trim();
-    req.body.niche = NICHE_NORMALIZE_MAP[key] ?? req.body.niche;
+  const b = req.body;
+  if (!b) return next();
+  // snake_case → camelCase
+  if (b.user_id      !== undefined && b.userId      === undefined) b.userId      = b.user_id;
+  if (b.business_name !== undefined && b.businessName === undefined) b.businessName = b.business_name;
+  // niche normalização
+  if (b.niche) {
+    const key = b.niche.toLowerCase().trim();
+    b.niche = NICHE_NORMALIZE_MAP[key] ?? b.niche;
   }
   next();
 }
