@@ -252,18 +252,22 @@ export async function createStoreWithTemplate({ name, niche, email, type, delive
 
   const template = getTemplate(nicheKey); // lança 400 se nicho inválido
 
+  console.log('[storeFactory] STEP 1 — input válido', { name, niche: nicheKey, email, type, storeType: template.type });
   logger.info('storeFactory: iniciando criação', { name, niche, email, type });
 
   // ── 2. Gera credenciais ──────────────────────────────────────────────────────
   const password = generatePassword();
   const baseSlug = await ensureUniqueSlug(toSlug(name, niche));
+  console.log('[storeFactory] STEP 2 — slug gerado:', baseSlug);
 
   // ── 3. Cria usuário ──────────────────────────────────────────────────────────
   let newUser;
   try {
+    console.log('[storeFactory] STEP 3 — criando usuário Supabase:', { email, type });
     newUser = await createAdminUser(email, password, 'basic', type);
+    console.log('[storeFactory] STEP 3 — usuário criado:', newUser.id);
   } catch (err) {
-    // Torna o erro legível para o chamador (ex: email já em uso)
+    console.error('[storeFactory] STEP 3 FALHOU — createAdminUser:', err);
     const message = err.message.includes('already')
       ? `Email já está em uso: ${email}`
       : `Falha ao criar usuário: ${err.message}`;
@@ -273,27 +277,51 @@ export async function createStoreWithTemplate({ name, niche, email, type, delive
   logger.info('storeFactory: usuário criado', { userId: newUser.id, email });
 
   // ── 4. Cria loja ─────────────────────────────────────────────────────────────
-  const store = await createStore({
-    name,
-    slug:         baseSlug,
-    type:         template.type,
-    deliveryFee,
-    deliveryNeighborhoods: [],
-  });
+  let store;
+  try {
+    console.log('[storeFactory] STEP 4 — criando loja:', { name, slug: baseSlug, type: template.type });
+    store = await createStore({
+      name,
+      slug:         baseSlug,
+      type:         template.type,
+      deliveryFee,
+      deliveryNeighborhoods: [],
+    });
+    console.log('[storeFactory] STEP 4 — loja criada:', store.id);
+  } catch (err) {
+    console.error('[storeFactory] STEP 4 FALHOU — createStore:', err);
+    throw err;
+  }
 
   // Vincula owner_id ao usuário criado
-  await getAdminClient()
-    .from('stores')
-    .update({
-      owner_id:                 newUser.id,
-      average_delivery_minutes: template.type === 'food' ? 40 : 60,
-    })
-    .eq('id', store.id);
+  try {
+    console.log('[storeFactory] STEP 4b — vinculando owner_id:', newUser.id);
+    const { error: updErr } = await getAdminClient()
+      .from('stores')
+      .update({
+        owner_id:                 newUser.id,
+        average_delivery_minutes: template.type === 'food' ? 40 : 60,
+      })
+      .eq('id', store.id);
+    if (updErr) console.error('[storeFactory] STEP 4b — update owner_id FALHOU:', updErr);
+    else console.log('[storeFactory] STEP 4b — owner_id vinculado');
+  } catch (err) {
+    console.error('[storeFactory] STEP 4b FALHOU — update owner_id:', err);
+    throw err;
+  }
 
   logger.info('storeFactory: loja criada', { storeId: store.id, slug: baseSlug });
 
   // ── 5. Cria categorias ───────────────────────────────────────────────────────
-  const categoryKeyToId = await createCategories(store.id, template.categories);
+  let categoryKeyToId;
+  try {
+    console.log('[storeFactory] STEP 5 — criando categorias:', template.categories.map(c => c.name));
+    categoryKeyToId = await createCategories(store.id, template.categories);
+    console.log('[storeFactory] STEP 5 — categorias criadas:', Object.keys(categoryKeyToId).length);
+  } catch (err) {
+    console.error('[storeFactory] STEP 5 FALHOU — createCategories:', err);
+    throw err;
+  }
 
   logger.info('storeFactory: categorias criadas', {
     storeId: store.id,
@@ -301,12 +329,20 @@ export async function createStoreWithTemplate({ name, niche, email, type, delive
   });
 
   // ── 6 + 7. Busca imagens + cria produtos ─────────────────────────────────────
-  const productSummary = await createProducts(
-    store.id,
-    template.products,
-    categoryKeyToId,
-    template.type
-  );
+  let productSummary;
+  try {
+    console.log('[storeFactory] STEP 6 — criando', template.products.length, 'produtos');
+    productSummary = await createProducts(
+      store.id,
+      template.products,
+      categoryKeyToId,
+      template.type
+    );
+    console.log('[storeFactory] STEP 6 — produtos criados:', productSummary);
+  } catch (err) {
+    console.error('[storeFactory] STEP 6 FALHOU — createProducts:', err);
+    throw err;
+  }
 
   logger.info('storeFactory: produtos criados', {
     storeId: store.id,

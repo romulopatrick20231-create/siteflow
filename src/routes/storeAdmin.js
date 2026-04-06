@@ -47,10 +47,12 @@ function validate(schema) {
   return (req, res, next) => {
     const { error, value } = schema.validate(req.body, { abortEarly: false, stripUnknown: true });
     if (error) {
+      const details = error.details.map((d) => d.message);
+      console.error('[storeAdmin] VALIDATION ERROR:', JSON.stringify(details));
       return res.status(400).json({
         success: false,
         error:   'Dados inválidos',
-        details: error.details.map((d) => d.message),
+        details,
         timestamp: new Date().toISOString(),
       });
     }
@@ -184,6 +186,11 @@ router.delete('/products/:id', asyncHandler(async (req, res) => {
  */
 router.post(
   '/create-with-template',
+  // Log raw body antes de qualquer validação
+  (req, _res, next) => {
+    console.log('[create-with-template] BODY:', JSON.stringify(req.body, null, 2));
+    next();
+  },
   validate(Joi.object({
     name:        Joi.string().min(2).max(120).required(),
     niche:       Joi.string().valid(...SUPPORTED_NICHES).required(),
@@ -191,11 +198,21 @@ router.post(
     type:        Joi.string().valid('pedezap', 'farmazap').required(),
     deliveryFee: Joi.number().min(0).default(5.00),
   })),
-  asyncHandler(async (req, res) => {
-    const result = await createStoreWithTemplate(req.body);
-    // 201 Created — retorna credenciais + URL da loja vinculada ao produto
-    send(res, result, 201);
-  })
+  async (req, res) => {
+    console.log('[create-with-template] VALIDATED BODY:', JSON.stringify(req.body, null, 2));
+    try {
+      const result = await createStoreWithTemplate(req.body);
+      send(res, result, 201);
+    } catch (err) {
+      console.error('[create-with-template] CREATE STORE ERROR:', err);
+      const status = err.statusCode ?? 500;
+      res.status(status).json({
+        success:   false,
+        error:     err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
 );
 
 /**
