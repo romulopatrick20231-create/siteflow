@@ -104,6 +104,38 @@ const siteStripeSchema  = Joi.object({
   currency:            Joi.string().length(3).lowercase().allow(null),
 }).min(1);
 
+// Mapa de normalização: frontend pode enviar slug simples ou acentuado
+const NICHE_NORMALIZE_MAP = {
+  'farmacia': 'Farmácia', 'farmácia': 'Farmácia',
+  'pizzaria': 'Pizzaria',
+  'hamburgueria': 'Hamburgueria',
+  'restaurante': 'Restaurante',
+  'padaria': 'Padaria',
+  'salao': 'Salão de Beleza', 'salão': 'Salão de Beleza', 'salao de beleza': 'Salão de Beleza',
+  'barbearia': 'Barbearia',
+  'estetica': 'Clínica de Estética', 'estética': 'Clínica de Estética', 'clinica de estetica': 'Clínica de Estética',
+  'clinica odontologica': 'Clínica Odontológica', 'odontologia': 'Clínica Odontológica',
+  'clinica medica': 'Clínica Médica', 'medica': 'Clínica Médica',
+  'fisioterapia': 'Clínica de Fisioterapia',
+  'nutricao': 'Consultório de Nutrição', 'nutrição': 'Consultório de Nutrição',
+  'veterinaria': 'Clínica Veterinária', 'veterinária': 'Clínica Veterinária',
+  'advocacia': 'Escritório de Advocacia',
+  'contabilidade': 'Escritório de Contabilidade',
+  'imobiliaria': 'Imobiliária', 'imobiliária': 'Imobiliária',
+  'academia': 'Academia / Studio Fitness', 'fitness': 'Academia / Studio Fitness',
+  'escola': 'Escola / Curso', 'curso': 'Escola / Curso',
+  'mecanica': 'Oficina Mecânica', 'mecânica': 'Oficina Mecânica',
+  'negocio local': 'Negócio Local', 'negócio local': 'Negócio Local',
+};
+
+function normalizeNiche(req, _res, next) {
+  if (req.body?.niche) {
+    const key = req.body.niche.toLowerCase().trim();
+    req.body.niche = NICHE_NORMALIZE_MAP[key] ?? req.body.niche;
+  }
+  next();
+}
+
 // Single site generation for existing user
 const generateSingleSchema = Joi.object({
   userId:       Joi.string().uuid({ version: "uuidv4" }).required(),
@@ -592,6 +624,7 @@ router.post(
     console.log('[generate-single] RAW BODY:', JSON.stringify(req.body, null, 2));
     next();
   },
+  normalizeNiche,
   validate(generateSingleSchema),
   asyncHandler(async (req, res) => {
     const { userId, ...lead } = req.body;
