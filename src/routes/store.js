@@ -17,9 +17,9 @@ import Joi        from 'joi';
 import { asyncHandler, send } from '../utils/asyncHandler.js';
 import { requireAuth }        from '../middleware/auth.js';
 import { requireAdmin }       from '../middleware/adminGuard.js';
+import { getAdminClient }     from '../saas/db.js';
 import {
   getStoreBySlug,
-  getStoreById,
   getStoreProducts,
   createOrder,
   updateOrderStatus,
@@ -70,89 +70,60 @@ const statusSchema = Joi.object({
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC — /public/store/:id  (frontend pharmacy/food app)
+// Consulta tabela `sites` + `products`
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Converte reais → centavos */
-const toCents = (v) => (v == null ? null : Math.round(Number(v) * 100));
-
-/** Mapeia tipo DB → niche legível */
-const TYPE_TO_NICHE = { food: 'Alimentação', pharmacy: 'Farmácia' };
-
-/** Mapeia nome de categoria do template → nome público */
-const CATEGORY_DISPLAY = {
-  // farmácia
-  dor_febre:  'Medicamentos', vitaminas: 'Vitaminas',
-  higiene:    'Higiene',      bebe:      'Bebê',
-  beleza:     'Beleza',       genericos: 'Medicamentos',
-  // food — pass-through
-};
-
-function mapStore(store) {
-  return {
-    id:                store.id,
-    name:              store.name,
-    business_name:     store.name,
-    niche:             TYPE_TO_NICHE[store.type] ?? store.type,
-    phone:             store.phone             ?? null,
-    description:       store.description       ?? null,
-    address:           store.address           ?? null,
-    cover_url:         store.cover_url         ?? null,
-    logo_url:          store.logo_url          ?? null,
-    is_open:           store.is_open           ?? true,
-    delivery_time_min: store.delivery_time_min ?? store.average_delivery_minutes ?? 30,
-    delivery_time_max: store.delivery_time_max ?? (store.average_delivery_minutes ? store.average_delivery_minutes + 20 : 60),
-    delivery_fee:      toCents(store.delivery_fee) ?? 0,
-    min_order:         store.min_order         ?? 0,
-    rating:            store.rating            ?? 0,
-    rating_count:      store.rating_count      ?? 0,
-  };
+async function fetchPublicStore(id) {
+  const db = getAdminClient();
+  const { data, error } = await db
+    .from('sites')
+    .select(`
+      id, name, business_name, niche, phone, description, address,
+      cover_url, logo_url, is_open,
+      delivery_time_min, delivery_time_max,
+      delivery_fee, min_order,
+      rating, rating_count
+    `)
+    .eq('id', id)
+    .eq('status', 'published')
+    .single();
+  if (error || !data) return null;
+  return data;
 }
 
-function mapProduct(p) {
-  const categoryName = p.store_categories?.name ?? null;
-  const display = categoryName
-    ? (CATEGORY_DISPLAY[categoryName?.toLowerCase().replace(/\s+/g, '_')] ?? categoryName)
-    : null;
-  return {
-    id:                    p.id,
-    name:                  p.name,
-    price:                 toCents(p.price),
-    original_price:        toCents(p.original_price),
-    imageUrl:              p.image_url ?? null,
-    description:           p.description ?? null,
-    category:              display,
-    requires_prescription: p.requires_prescription ?? false,
-    is_available:          p.is_active ?? true,
-    badge:                 p.metadata?.badge ?? null,
-  };
+async function fetchPublicProducts(siteId) {
+  const db = getAdminClient();
+  const { data, error } = await db
+    .from('products')
+    .select('id, name, price, original_price, image_url, description, category, requires_prescription, is_available, badge')
+    .eq('site_id', siteId)
+    .eq('is_available', true);
+  if (error) throw new Error(`fetchPublicProducts: ${error.message}`);
+  return (data ?? []).map((p) => ({ ...p, imageUrl: p.image_url }));
 }
 
 /**
  * GET /public/store/:id
- * Store info for the public frontend (pharmacy / food app).
  */
 router.get('/public/store/:id', asyncHandler(async (req, res) => {
-  const result = await getStoreById(req.params.id);
-  if (!result) {
+  const store = await fetchPublicStore(req.params.id);
+  if (!store) {
     return res.status(404).json({ success: false, error: 'Loja não encontrada', timestamp: new Date().toISOString() });
   }
-  send(res, {
-    store:      mapStore(result.store),
-    categories: result.categories,
-  });
+  const products = await fetchPublicProducts(store.id);
+  res.json({ success: true, data: { ...store, products } });
 }));
 
 /**
  * GET /public/store/:id/products
- * Product list for the public frontend.
  */
 router.get('/public/store/:id/products', asyncHandler(async (req, res) => {
-  const result = await getStoreById(req.params.id);
-  if (!result) {
+  const store = await fetchPublicStore(req.params.id);
+  if (!store) {
     return res.status(404).json({ success: false, error: 'Loja não encontrada', timestamp: new Date().toISOString() });
   }
-  const raw = await getStoreProducts(result.store.id);
-  send(res, raw.map(mapProduct));
+  const products = await fetchPublicProducts(store.id);
+  res.json({ success: true, data: products });
 }));
 
 // ─────────────────────────────────────────────────────────────────────────────
