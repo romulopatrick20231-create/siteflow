@@ -190,17 +190,30 @@ router.get("/users", asyncHandler(async (req, res) => {
 }));
 
 // ── POST /admin/users/create ──────────────────────────────────────────────────
-// Create a new user account. Body: { email, password, plan? }
+// Create a new user account. Body: { email, password, plan?, type? }
 router.post(
   "/users/create",
+  (req, _res, next) => {
+    console.log("[admin/users/create] BODY:", JSON.stringify(req.body, null, 2));
+    next();
+  },
   validate(createUserSchema),
-  asyncHandler(async (req, res) => {
+  async (req, res) => {
     const { email, password, plan, type } = req.body;
-
-    const user = await createAdminUser(email, password, plan, type ?? null);
-    logger.info("Admin created user", { adminId: req.userId, email, plan, type });
-    res.status(201).json(user);
-  })
+    console.log("[admin/users/create] VALIDATED:", { email, plan, type });
+    try {
+      const user = await createAdminUser(email, password, plan, type ?? null);
+      logger.info("Admin created user", { adminId: req.userId, email, plan, type });
+      res.status(201).json(user);
+    } catch (err) {
+      console.error("[admin/users/create] ERROR:", err);
+      res.status(err.statusCode ?? 500).json({
+        success:   false,
+        error:     err.message,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
 );
 
 // ── PATCH /admin/users/:id/password ───────────────────────────────────────────
