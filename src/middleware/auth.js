@@ -34,10 +34,10 @@ export async function requireAuth(req, res, next) {
     const { data: { user }, error } = await admin.auth.getUser(token);
     if (error || !user) throw new UnauthorizedError("Invalid or expired session");
 
-    // Load user profile (plan, is_admin, is_active)
+    // Load user profile (plan, is_admin, is_active, type)
     const { data: profile, error: profileErr } = await admin
       .from("users")
-      .select("id, email, plan, is_admin, is_active, publish_limit, publish_count_month")
+      .select("id, email, plan, is_admin, is_active, publish_limit, publish_count_month, type")
       .eq("id", user.id)
       .single();
 
@@ -46,7 +46,7 @@ export async function requireAuth(req, res, next) {
       logger.warn("User profile missing, provisioning", { userId: user.id });
       const { data: newProfile } = await admin
         .from("users")
-        .upsert({ id: user.id, email: user.email, plan: "basic" }, { onConflict: "id" })
+        .upsert({ id: user.id, email: user.email, plan: "basic", type: null }, { onConflict: "id" })
         .select()
         .single();
       req.userProfile = newProfile;

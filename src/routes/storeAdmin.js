@@ -35,8 +35,8 @@ import {
   updateStoreProduct,
   deleteStoreProduct,
 } from '../saas/storeService.js';
-import { createStoreWithTemplate } from '../saas/storeFactory.js';
-import { SUPPORTED_NICHES }        from '../saas/storeTemplates.js';
+import { createStoreWithTemplate }           from '../saas/storeFactory.js';
+import { SUPPORTED_NICHES, NICHES_BY_TYPE }  from '../saas/storeTemplates.js';
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -188,21 +188,25 @@ router.post(
     name:        Joi.string().min(2).max(120).required(),
     niche:       Joi.string().valid(...SUPPORTED_NICHES).required(),
     email:       Joi.string().email().required(),
+    type:        Joi.string().valid('pedezap', 'farmazap').required(),
     deliveryFee: Joi.number().min(0).default(5.00),
   })),
   asyncHandler(async (req, res) => {
     const result = await createStoreWithTemplate(req.body);
-    // 201 Created — retorna credenciais + URL da loja
+    // 201 Created — retorna credenciais + URL da loja vinculada ao produto
     send(res, result, 201);
   })
 );
 
 /**
  * GET /store-admin/niches
- * Lista os nichos suportados pelo factory.
+ * Lista os nichos suportados pelo factory, agrupados por produto.
  */
 router.get('/niches', (_req, res) => {
-  send(res, { niches: SUPPORTED_NICHES });
+  send(res, {
+    niches:        SUPPORTED_NICHES,
+    nichesByType:  NICHES_BY_TYPE,
+  });
 });
 
 export default router;

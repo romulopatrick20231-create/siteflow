@@ -84,6 +84,7 @@ const createUserSchema = Joi.object({
   email:    Joi.string().email().required(),
   password: Joi.string().min(8).max(128).required(),
   plan:     Joi.string().valid("basic", "pro", "admin").default("basic"),
+  type:     Joi.string().valid("pedezap", "farmazap").optional().allow(null),
 });
 const passwordSchema = Joi.object({ password: Joi.string().min(8).max(128).required() });
 const roleSchema     = Joi.object({ is_admin: Joi.boolean().required() });
@@ -194,10 +195,10 @@ router.post(
   "/users/create",
   validate(createUserSchema),
   asyncHandler(async (req, res) => {
-    const { email, password, plan } = req.body;
+    const { email, password, plan, type } = req.body;
 
-    const user = await createAdminUser(email, password, plan);
-    logger.info("Admin created user", { adminId: req.userId, email, plan });
+    const user = await createAdminUser(email, password, plan, type ?? null);
+    logger.info("Admin created user", { adminId: req.userId, email, plan, type });
     res.status(201).json(user);
   })
 );

@@ -107,10 +107,15 @@ export async function setUserCredits(userId, amount) {
  * @param {string} email
  * @param {string} password
  * @param {string} plan — "basic" | "pro" | "admin"
- * @returns {Promise<{ id, email, plan }>}
+ * @param {string|null} [type] — "pedezap" | "farmazap" | null
+ * @returns {Promise<{ id, email, plan, type }>}
  */
-export async function createAdminUser(email, password, plan) {
+export async function createAdminUser(email, password, plan, type = null) {
   if (!PLAN_CREDITS[plan]) throw new Error(`Invalid plan: ${plan}`);
+  if (type && !['pedezap', 'farmazap'].includes(type)) {
+    throw new Error(`Invalid type: "${type}". Use: pedezap | farmazap`);
+  }
+
   const db = getAdminClient();
 
   const { data: { user }, error } = await db.auth.admin.createUser({
@@ -121,10 +126,10 @@ export async function createAdminUser(email, password, plan) {
   if (error) throw new Error(`createAdminUser: ${error.message}`);
 
   // Trigger may not fire instantly — upsert users row defensively
-  await db.from("users").upsert(
-    { id: user.id, email, plan, publish_limit: PLAN_PUBLISH[plan] },
-    { onConflict: "id" }
-  );
+  const userRow = { id: user.id, email, plan, publish_limit: PLAN_PUBLISH[plan] };
+  if (type) userRow.type = type;
+
+  await db.from("users").upsert(userRow, { onConflict: "id" });
 
   // Provision credits
   await db.from("user_credits").upsert(
@@ -132,7 +137,7 @@ export async function createAdminUser(email, password, plan) {
     { onConflict: "user_id" }
   );
 
-  return { id: user.id, email, plan };
+  return { id: user.id, email, plan, type };
 }
 
 /**

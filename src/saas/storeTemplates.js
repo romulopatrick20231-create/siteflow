@@ -128,6 +128,43 @@ const ACAI = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SORVETERIA
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SORVETERIA = {
+  type: 'food',
+  categories: [
+    { key: 'sorvetes',   name: 'Sorvetes',   order: 0 },
+    { key: 'acai',       name: 'Açaí',       order: 1 },
+    { key: 'milkshakes', name: 'Milkshakes', order: 2 },
+    { key: 'combos',     name: 'Combos',     order: 3 },
+  ],
+  products: [
+    // Sorvetes
+    { category: 'sorvetes',   name: 'Casquinha Simples',        price:  6.90, description: '1 bola de sorvete em casquinha crocante.',                   pexelsQuery: 'ice cream cone single scoop' },
+    { category: 'sorvetes',   name: 'Casquinha Dupla',          price: 10.90, description: '2 bolas de sorvete em casquinha crocante.',                  pexelsQuery: 'double scoop ice cream cone' },
+    { category: 'sorvetes',   name: 'Sundae de Chocolate',      price: 14.90, description: 'Sorvete de creme com calda de chocolate e chantilly.',        pexelsQuery: 'chocolate sundae ice cream dessert' },
+    { category: 'sorvetes',   name: 'Sundae de Morango',        price: 14.90, description: 'Sorvete de creme com calda de morango e chantilly.',          pexelsQuery: 'strawberry sundae ice cream' },
+    { category: 'sorvetes',   name: 'Taça 3 Bolas',             price: 18.90, description: 'Escolha 3 sabores com cobertura à escolha.',                 pexelsQuery: 'three scoop ice cream bowl' },
+    { category: 'sorvetes',   name: 'Sorvete no Pote 500ml',    price: 24.90, description: 'Pote 500ml no sabor à escolha.',                             pexelsQuery: 'ice cream pint container' },
+    { category: 'sorvetes',   name: 'Sorvete no Pote 1L',       price: 42.90, description: 'Pote 1L, ideal para compartilhar.',                          pexelsQuery: 'ice cream large container family' },
+    // Açaí
+    { category: 'acai',       name: 'Açaí 300ml',               price: 14.90, description: 'Açaí cremoso 300ml com granola e banana.',                   pexelsQuery: 'acai bowl purple toppings' },
+    { category: 'acai',       name: 'Açaí 500ml',               price: 22.90, description: 'Açaí cremoso 500ml com granola, banana e morango.',          pexelsQuery: 'acai bowl large granola' },
+    { category: 'acai',       name: 'Açaí Premium 700ml',       price: 30.90, description: 'Açaí premium com mel, leite condensado e frutas da época.',  pexelsQuery: 'premium acai bowl colorful' },
+    // Milkshakes
+    { category: 'milkshakes', name: 'Milkshake de Chocolate',   price: 16.90, description: 'Milkshake cremoso 400ml com calda de chocolate.',            pexelsQuery: 'chocolate milkshake thick straw' },
+    { category: 'milkshakes', name: 'Milkshake de Morango',     price: 16.90, description: 'Milkshake 400ml com morangos frescos.',                      pexelsQuery: 'strawberry milkshake pink glass' },
+    { category: 'milkshakes', name: 'Milkshake de Baunilha',    price: 15.90, description: 'Milkshake cremoso de baunilha 400ml.',                       pexelsQuery: 'vanilla milkshake creamy' },
+    { category: 'milkshakes', name: 'Milkshake Oreo',           price: 18.90, description: 'Milkshake com biscoitos Oreo triturados e chantilly.',       pexelsQuery: 'oreo milkshake cookies cream' },
+    // Combos
+    { category: 'combos',     name: 'Combo Casal',              price: 34.90, description: '2 Taças 3 Bolas + 2 Milkshakes.',                           pexelsQuery: 'couple ice cream desserts table' },
+    { category: 'combos',     name: 'Combo Família',            price: 59.90, description: '4 Casquinhas Duplas + 2 Milkshakes.',                        pexelsQuery: 'family ice cream dessert' },
+    { category: 'combos',     name: 'Combo Sorvete + Açaí',     price: 36.90, description: 'Taça 3 Bolas + Açaí 500ml.',                                pexelsQuery: 'ice cream acai bowl combo' },
+  ],
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // FARMÁCIA
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -187,7 +224,22 @@ export const STORE_TEMPLATES = {
   pizzaria:     PIZZARIA,
   hamburgueria: HAMBURGUERIA,
   acai:         ACAI,
+  sorveteria:   SORVETERIA,
   farmacia:     FARMACIA,
+};
+
+// ── Mapeamento de nichos por produto ─────────────────────────────────────────
+
+/** Nichos permitidos para usuários PedeZap (delivery food) */
+export const PEDEZAP_NICHES = ['pizzaria', 'hamburgueria', 'acai', 'sorveteria'];
+
+/** Nichos permitidos para usuários FarmaZap */
+export const FARMAZAP_NICHES = ['farmacia'];
+
+/** Mapa type → niches para validação no storeFactory */
+export const NICHES_BY_TYPE = {
+  pedezap:  PEDEZAP_NICHES,
+  farmazap: FARMAZAP_NICHES,
 };
 
 /**

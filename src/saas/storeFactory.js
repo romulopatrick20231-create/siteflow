@@ -17,7 +17,7 @@
 import { getAdminClient }    from './db.js';
 import { createAdminUser }   from './admin.js';
 import { createStore }       from './storeService.js';
-import { getTemplate }       from './storeTemplates.js';
+import { getTemplate, NICHES_BY_TYPE } from './storeTemplates.js';
 import { searchImage, clearImageCache } from '../services/pexelsService.js';
 import logger                from '../utils/logger.js';
 
@@ -209,28 +209,50 @@ async function createProducts(storeId, products, categoryKeyToId, storeType) {
  * Cria uma loja completa a partir de um template de nicho.
  *
  * @param {object} data
- * @param {string} data.name    — Nome da loja (ex: "Pizzaria da Vila")
- * @param {string} data.niche   — Nicho: "pizzaria" | "hamburgueria" | "acai" | "farmacia"
- * @param {string} data.email   — Email do lojista (será o login)
+ * @param {string} data.name         — Nome da loja (ex: "Pizzaria da Vila")
+ * @param {string} data.niche        — Nicho: "pizzaria" | "hamburgueria" | "acai" | "sorveteria" | "farmacia"
+ * @param {string} data.email        — Email do lojista (será o login)
+ * @param {string} data.type         — Produto: "pedezap" | "farmazap"
  * @param {number} [data.deliveryFee=5.00]  — Taxa de entrega padrão
  *
  * @returns {Promise<{
  *   store_url: string,
  *   login: string,
  *   password: string,
+ *   type: string,
  *   store: object,
  *   summary: object
  * }>}
  */
-export async function createStoreWithTemplate({ name, niche, email, deliveryFee = 5.00 }) {
+export async function createStoreWithTemplate({ name, niche, email, type, deliveryFee = 5.00 }) {
   // ── 1. Valida input ──────────────────────────────────────────────────────────
   if (!name?.trim())  throw Object.assign(new Error('name é obrigatório'),  { statusCode: 400 });
   if (!niche?.trim()) throw Object.assign(new Error('niche é obrigatório'), { statusCode: 400 });
   if (!email?.trim()) throw Object.assign(new Error('email é obrigatório'), { statusCode: 400 });
+  if (!type?.trim())  throw Object.assign(new Error('type é obrigatório (pedezap | farmazap)'), { statusCode: 400 });
 
-  const template = getTemplate(niche); // lança 400 se nicho inválido
+  const allowedNiches = NICHES_BY_TYPE[type];
+  if (!allowedNiches) {
+    throw Object.assign(
+      new Error(`type inválido: "${type}". Use: pedezap | farmazap`),
+      { statusCode: 400 }
+    );
+  }
 
-  logger.info('storeFactory: iniciando criação', { name, niche, email });
+  const nicheKey = niche.toLowerCase().trim();
+  if (!allowedNiches.includes(nicheKey)) {
+    throw Object.assign(
+      new Error(
+        `Nicho "${niche}" não permitido para ${type}. ` +
+        `Permitidos: ${allowedNiches.join(', ')}`
+      ),
+      { statusCode: 400 }
+    );
+  }
+
+  const template = getTemplate(nicheKey); // lança 400 se nicho inválido
+
+  logger.info('storeFactory: iniciando criação', { name, niche, email, type });
 
   // ── 2. Gera credenciais ──────────────────────────────────────────────────────
   const password = generatePassword();
@@ -239,7 +261,7 @@ export async function createStoreWithTemplate({ name, niche, email, deliveryFee 
   // ── 3. Cria usuário ──────────────────────────────────────────────────────────
   let newUser;
   try {
-    newUser = await createAdminUser(email, password, 'basic');
+    newUser = await createAdminUser(email, password, 'basic', type);
   } catch (err) {
     // Torna o erro legível para o chamador (ex: email já em uso)
     const message = err.message.includes('already')
@@ -298,17 +320,19 @@ export async function createStoreWithTemplate({ name, niche, email, deliveryFee 
     store_url: storeUrl,
     login:     email,
     password,
+    type,
     store: {
-      id:   store.id,
-      name: store.name,
-      slug: baseSlug,
-      type: template.type,
+      id:        store.id,
+      name:      store.name,
+      slug:      baseSlug,
+      storeType: template.type,
     },
     summary: {
       categoriesCreated: template.categories.length,
       productsCreated:   productSummary.total,
       productsWithImage: productSummary.withImage,
       niche,
+      product: type,
     },
   };
 }

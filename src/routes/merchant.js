@@ -42,6 +42,7 @@ import Joi        from 'joi';
 
 import { asyncHandler, send } from '../utils/asyncHandler.js';
 import { requireAuth }        from '../middleware/auth.js';
+import { requireType }        from '../middleware/requireProductType.js';
 import { ORDER_STATUSES }     from '../saas/storeService.js';
 import {
   getMerchantStore,
@@ -173,9 +174,9 @@ router.patch(
   })
 );
 
-// ── Receitas (farmácia) ───────────────────────────────────────────────────────
+// ── Receitas (farmácia) — exclusivo FarmaZap ──────────────────────────────────
 
-router.get('/prescriptions', asyncHandler(async (req, res) => {
+router.get('/prescriptions', requireType('farmazap'), asyncHandler(async (req, res) => {
   const { limit, offset } = req.query;
   const prescriptions = await getPrescriptionOrders(req.userId, {
     limit:  limit  ? parseInt(limit,  10) : 50,

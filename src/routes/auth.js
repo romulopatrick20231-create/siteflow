@@ -21,7 +21,8 @@ const router = Router();
 // ── GET /auth/me — get current user profile + credits ─────────────────────
 router.get("/me", requireAuth, asyncHandler(async (req, res) => {
   const profile = await getUserProfile(req.userId);
-  send(res, profile);
+  // type vem do middleware requireAuth (já carregado de public.users)
+  send(res, { ...profile, type: req.userProfile?.type ?? null });
 }));
 
 // ── POST /auth/profile — update display name / metadata ───────────────────
