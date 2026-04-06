@@ -123,7 +123,13 @@ export async function createAdminUser(email, password, plan, type = null) {
     password,
     email_confirm: true,
   });
-  if (error) throw new Error(`createAdminUser: ${error.message}`);
+  if (error) {
+    const isEmailTaken = error.message?.toLowerCase().includes('already') ||
+                         error.message?.toLowerCase().includes('registered');
+    const err = new Error(`createAdminUser: ${error.message}`);
+    err.statusCode = isEmailTaken ? 409 : 500;
+    throw err;
+  }
 
   // Trigger may not fire instantly — upsert users row defensively
   const userRow = { id: user.id, email, plan, publish_limit: PLAN_PUBLISH[plan] };
