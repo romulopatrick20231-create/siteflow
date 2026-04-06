@@ -58,20 +58,54 @@ export async function getStoreBySlug(slug) {
 }
 
 /**
- * Get all active products for a store, grouped by category.
+ * Get all active products for a store (with category name joined).
  */
 export async function getStoreProducts(storeId) {
   const db = getAdminClient();
 
   const { data, error } = await db
     .from('store_products')
-    .select('id, name, price, image_url, description, category_id, metadata, requires_prescription')
+    .select('id, name, price, original_price, image_url, description, category_id, metadata, requires_prescription, is_active, store_categories(name)')
     .eq('store_id', storeId)
     .eq('is_active', true)
     .order('name', { ascending: true });
 
   if (error) throw new Error(`getStoreProducts: ${error.message}`);
   return data ?? [];
+}
+
+/**
+ * Get store by ID — for public frontend endpoint.
+ * Returns all fields needed by the pharmacy/food frontend.
+ */
+export async function getStoreById(id) {
+  const db = getAdminClient();
+
+  const { data: store, error } = await db
+    .from('stores')
+    .select(`
+      id, name, slug, type,
+      phone, description, address,
+      cover_url, logo_url,
+      is_open,
+      delivery_time_min, delivery_time_max,
+      delivery_fee, min_order,
+      rating, rating_count,
+      average_delivery_minutes
+    `)
+    .eq('id', id)
+    .eq('is_active', true)
+    .single();
+
+  if (error || !store) return null;
+
+  const { data: categories } = await db
+    .from('store_categories')
+    .select('id, name, order')
+    .eq('store_id', id)
+    .order('order', { ascending: true });
+
+  return { store, categories: categories ?? [] };
 }
 
 // ── Delivery fee ──────────────────────────────────────────────────────────────
