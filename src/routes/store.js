@@ -82,12 +82,13 @@ async function fetchPublicStore(id) {
       cover_url, logo_url, is_open,
       delivery_time_min, delivery_time_max,
       delivery_fee, min_order,
-      rating, rating_count
+      rating, rating_count, status
     `)
     .eq('id', id)
-    .eq('status', 'published')
     .single();
+  console.log('[fetchPublicStore] id:', id, '| data:', data ? `status=${data.status}` : null, '| error:', error?.message ?? null);
   if (error || !data) return null;
+  if (data.status !== 'published') return null;
   return data;
 }
 
