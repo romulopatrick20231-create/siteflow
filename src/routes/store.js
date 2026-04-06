@@ -77,30 +77,55 @@ async function fetchPublicStore(id) {
   const db = getAdminClient();
   const { data, error } = await db
     .from('sites')
-    .select(`
-      id, name, business_name, niche, phone, description, address,
-      cover_url, logo_url, is_open,
-      delivery_time_min, delivery_time_max,
-      delivery_fee, min_order,
-      rating, rating_count, status
-    `)
+    .select('id, business_name, niche, phone, city, address, delivery_fee_fixed, content, config, status')
     .eq('id', id)
+    .eq('status', 'published')
     .single();
-  console.log('[fetchPublicStore] id:', id, '| data:', data ? `status=${data.status}` : null, '| error:', error?.message ?? null);
+  console.log('[fetchPublicStore] id:', id, '| found:', !!data, '| error:', error?.message ?? null);
   if (error || !data) return null;
-  if (data.status !== 'published') return null;
-  return data;
+
+  const content = data.content ?? {};
+  return {
+    id:                data.id,
+    name:              data.business_name,
+    business_name:     data.business_name,
+    niche:             data.niche,
+    phone:             data.phone    ?? null,
+    city:              data.city     ?? null,
+    address:           data.address  ?? null,
+    delivery_fee:      data.delivery_fee_fixed ?? 0,
+    description:       content.description ?? null,
+    cover_url:         content.cover_url   ?? content.hero_image ?? null,
+    logo_url:          content.logo_url    ?? content.logo       ?? null,
+    is_open:           true,
+    delivery_time_min: 30,
+    delivery_time_max: 60,
+    min_order:         0,
+    rating:            0,
+    rating_count:      0,
+  };
 }
 
 async function fetchPublicProducts(siteId) {
   const db = getAdminClient();
   const { data, error } = await db
     .from('products')
-    .select('id, name, price, original_price, image_url, description, category, requires_prescription, is_available, badge')
+    .select('id, name, price, image_url, description, is_active, sort_order')
     .eq('site_id', siteId)
-    .eq('is_available', true);
+    .eq('is_active', true);
   if (error) throw new Error(`fetchPublicProducts: ${error.message}`);
-  return (data ?? []).map((p) => ({ ...p, imageUrl: p.image_url }));
+  return (data ?? []).map((p) => ({
+    id:                    p.id,
+    name:                  p.name,
+    price:                 p.price,
+    original_price:        null,
+    imageUrl:              p.image_url ?? null,
+    description:           p.description ?? null,
+    category:              null,
+    requires_prescription: false,
+    is_available:          p.is_active ?? true,
+    badge:                 null,
+  }));
 }
 
 /**
