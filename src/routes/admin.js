@@ -574,6 +574,10 @@ router.post(
 // Body: { userId, businessName, niche?, city?, phone?, address?, neighborhood?, email?, skipAI? }
 router.post(
   "/generate-single",
+  (req, _res, next) => {
+    console.log('[generate-single] RAW BODY:', JSON.stringify(req.body, null, 2));
+    next();
+  },
   validate(generateSingleSchema),
   asyncHandler(async (req, res) => {
     const { userId, ...lead } = req.body;
