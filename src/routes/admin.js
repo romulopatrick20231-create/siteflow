@@ -673,19 +673,17 @@ router.post(
 
 /**
  * GET /admin/template-check?niche=Farmácia
- * Diagnóstico: confirma qual função de template está ativa para um nicho.
- * Útil para verificar se o deploy do Railway está rodando o código novo.
+ * Diagnóstico público — sem auth. Confirma qual template está ativo no Railway.
  */
 router.get(
   "/template-check",
-  requireAuth, requireAdmin,
   asyncHandler(async (req, res) => {
     const { getTemplate } = await import("../saas/templates/index.js");
     const niche = (req.query.niche || "Farmácia").toString();
     const fn    = getTemplate(niche);
     send(res, {
       niche,
-      template: fn ? fn.name || "anônima" : null,
+      template:  fn ? fn.name || "anônima" : null,
       isLovable: fn ? fn.name === "buildFarmaciaHTML" : false,
       timestamp: new Date().toISOString(),
     });
