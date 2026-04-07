@@ -96,7 +96,36 @@ export function buildFarmaciaHTML(site) {
 
   const waFloat = `<a href="${waUrl}" target="_blank" rel="noopener" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;align-items:center;gap:10px;background:#25D366;color:#fff;padding:14px 22px;border-radius:50px;font-family:sans-serif;font-size:15px;font-weight:700;text-decoration:none;box-shadow:0 6px 24px rgba(37,211,102,.45);transition:transform .2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">${WA_SVG} Falar no WhatsApp</a>`;
 
-  html = html.replace("</body>", `${cityBar}${waFloat}\n</body>`);
+  // 5. DOM patch script — runs AFTER React mounts and overwrites any residual
+  //    "FarmaZap" strings that the compiled React bundle may still render.
+  //    (React re-renders from its compiled JS state; our HTML split/join already
+  //    replaces the bundle strings, but this is a belt-and-suspenders guard.)
+  const safeNameJs  = name.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const safeWaUrlJs = waUrl.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  const domPatch = `<script>
+(function(){
+  var N='${safeNameJs}',W='${safeWaUrlJs}';
+  function patch(){
+    var t=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null,false),n;
+    while((n=t.nextNode()))if(n.nodeValue.indexOf('FarmaZap')>-1)n.nodeValue=n.nodeValue.split('FarmaZap').join(N);
+    document.querySelectorAll('[href*="FarmaZap"],[alt*="FarmaZap"],[title*="FarmaZap"],[aria-label*="FarmaZap"]').forEach(function(el){
+      if(el.href&&el.href.indexOf('FarmaZap')>-1)el.href=el.href.split('FarmaZap').join(encodeURIComponent(N));
+      if(el.alt)el.alt=el.alt.split('FarmaZap').join(N);
+      if(el.title)el.title=el.title.split('FarmaZap').join(N);
+      if(el.ariaLabel)el.ariaLabel=el.ariaLabel.split('FarmaZap').join(N);
+    });
+    if(document.title.indexOf('FarmaZap')>-1)document.title=document.title.split('FarmaZap').join(N);
+  }
+  var root=document.getElementById('root');
+  if(!root){document.addEventListener('DOMContentLoaded',patch);return;}
+  if(root.children.length>0){patch();return;}
+  var obs=new MutationObserver(function(){if(root.children.length>0){obs.disconnect();setTimeout(patch,80);}});
+  obs.observe(root,{childList:true});
+  setTimeout(function(){obs.disconnect();patch();},3000);
+})();
+</script>`;
+
+  html = html.replace("</body>", `${cityBar}${waFloat}${domPatch}\n</body>`);
 
   return html;
 }

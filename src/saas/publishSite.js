@@ -64,16 +64,10 @@ export async function publishSite(siteId, userId) {
     throw err;
   }
 
-  if (site.status === "published") {
-    const err = new Error(
-      'Este site já está publicado. Para republicar com novas alterações, ' +
-      'mude o status para "rascunho", edite o conteúdo e marque como "pronto" novamente.'
-    );
-    err.code = "ALREADY_PUBLISHED";
-    throw err;
-  }
+  // "published" → allow re-publish (redeploy with latest template/content)
+  // "ready"     → first publish
 
-  if (site.status !== "ready") {
+  if (site.status !== "ready" && site.status !== "published") {
     const err = new Error(
       `O site precisa estar com status "pronto" para ser publicado. ` +
       `Status atual: "${site.status}".`
