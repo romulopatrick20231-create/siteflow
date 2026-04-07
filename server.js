@@ -154,6 +154,23 @@ app.get("/health", (_req, res) => {
   });
 });
 
+// ── Template check (público, sem auth) ───────────────────────────────────────
+app.get("/template-check", async (req, res) => {
+  try {
+    const { getTemplate } = await import("./src/saas/templates/index.js");
+    const niche = (req.query.niche || "Farmácia").toString();
+    const fn    = getTemplate(niche);
+    res.json({
+      niche,
+      template:  fn ? (fn.name || "anônima") : null,
+      isLovable: fn?.name === "buildFarmaciaHTML",
+      timestamp: new Date().toISOString(),
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ── Mount routes ──────────────────────────────────────────────────────────────
 app.use("/auth",     authRouter);
 app.use("/site",     siteRouter);     // single-site convenience (GET/PUT /site, POST /site/publish)
