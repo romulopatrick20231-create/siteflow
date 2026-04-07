@@ -160,11 +160,27 @@ app.get("/template-check", async (req, res) => {
     const { getTemplate } = await import("./src/saas/templates/index.js");
     const niche = (req.query.niche || "Farmácia").toString();
     const fn    = getTemplate(niche);
+
+    // Gera um HTML mínimo para inspecionar qual template foi usado
+    let isLovable = false;
+    let htmlSize  = 0;
+    if (fn) {
+      const html = fn({
+        business_name: "TESTE_CHECK", niche,
+        phone: "11999999999", city: "SP",
+        images: [], content: { pages: [] },
+      });
+      htmlSize  = html.length;
+      // Template Lovable tem >500KB e contém "TESTE_CHECK" (FarmaZap substituído)
+      isLovable = html.length > 500_000 && html.includes("TESTE_CHECK");
+    }
+
     res.json({
       niche,
-      template:  fn ? (fn.name || "anônima") : null,
-      isLovable: fn?.name === "buildFarmaciaHTML",
-      timestamp: new Date().toISOString(),
+      template:    fn ? (fn.toString().includes("buildFarmaciaHTML") ? "buildFarmaciaHTML" : fn.name) : null,
+      isLovable,
+      htmlSizeKB:  Math.round(htmlSize / 1024),
+      timestamp:   new Date().toISOString(),
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
