@@ -1,11 +1,16 @@
 /**
- * farmacia.js — Premium Farmácia / Drogaria template.
+ * farmacia.js — Premium Farmácia / Drogaria / Manipulação template.
  *
- * Design: clean white-blue pharmaceutical. Trust-first layout.
- * Feels like Ultrafarma / Drogasil but tailored.
- * Full cart (Stripe + WhatsApp), product categories, trust signals.
+ * buildFarmaciaHTML: usa o template Lovable (farmacia-lovable.html) como base.
+ *   - Injeta dados do cliente via string replace + script override
+ *   - Sobrescreve variáveis CSS :root para tematização por nicho
+ *
+ * buildFarmaciaFull: template próprio (legado, mantido como fallback).
  */
 
+import { readFileSync } from "fs";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 import { waLink } from "../htmlBuilder.js";
 import {
   WA_SVG, findSection, getAllImages, getFirstImage,
@@ -14,7 +19,86 @@ import {
   SHARED_CSS, SHARED_JS, CART_CSS, cartJS, cartDrawerHTML,
 } from "./shared.js";
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const API_BASE = process.env.API_BASE_URL || "https://api.forgesites.app";
+
+// ── Tema por nicho ─────────────────────────────────────────────────────────
+// Valores em formato HSL sem hsl() — padrão Tailwind/shadcn
+const FARMACIA_CONFIGS = {
+  "Farmácia":                { primary: "348 85% 46%", accent: "142 72% 29%" },
+  "Drogaria":                { primary: "217 90% 56%", accent: "25 95% 53%"  },
+  "Farmácia de Manipulação": { primary: "142 72% 29%", accent: "45 93% 47%"  },
+};
+
+// Template Lovable carregado uma vez (1.8 MB, estático)
+let _lovableTemplate = null;
+function getLovableTemplate() {
+  if (!_lovableTemplate) {
+    _lovableTemplate = readFileSync(
+      join(__dirname, "farmacia-lovable.html"),
+      "utf8"
+    );
+  }
+  return _lovableTemplate;
+}
+
+// ── buildFarmaciaHTML ──────────────────────────────────────────────────────
+
+export function buildFarmaciaHTML(site) {
+  const niche = site.niche || "Farmácia";
+  const cfg   = FARMACIA_CONFIGS[niche] || FARMACIA_CONFIGS["Farmácia"];
+
+  const name   = site.business_name || "FarmaZap";
+  const city   = site.city || "";
+  const phone  = (site.phone || "").replace(/\D/g, "");
+  const waUrl  = phone
+    ? `https://wa.me/55${phone}?text=${encodeURIComponent(`Olá, ${name}! Vim pelo site.`)}`
+    : "#";
+
+  // Logo: imagem do tipo "logo" ou campo site.logo
+  // DB retorna public_url; fallback para url (testes locais) e site.logo
+  const logoImg = (site.images || []).find(i => i.type === "logo");
+  const logoUrl = logoImg?.public_url || logoImg?.url || site.logo || null;
+
+  let html = getLovableTemplate();
+
+  // 1. Substitui nome da marca (24 ocorrências no template)
+  html = html.split("FarmaZap").join(name);
+
+  // 2. Substitui logo se disponível
+  if (logoUrl) {
+    html = html.split('"/favicon.png"').join(`"${logoUrl}"`);
+    html = html.replace('href="/favicon.png"', `href="${logoUrl}"`);
+  }
+
+  // 3. Sobrescreve variáveis de cor no :root — injeta ANTES de </style>
+  //    O bloco já existente define --primary, --pacheco-red etc; o nosso vem
+  //    depois no cascade e vence.
+  const cssOverride = [
+    `:root{`,
+    `--primary:${cfg.primary};`,
+    `--pacheco-red:${cfg.primary};`,
+    `--pacheco-green:${cfg.accent};`,
+    `--pacheco-banner-bg:${cfg.primary};`,
+    `--ring:${cfg.primary};`,
+    `--secondary:${cfg.accent}`,
+    `}`,
+  ].join("");
+  html = html.replace("</style>", `${cssOverride}</style>`);
+
+  // 4. Injeções de dados do cliente antes de </body>:
+  //    - badge de cidade (topo fixo)
+  //    - botão flutuante WhatsApp
+  const cityBar = city
+    ? `<div style="position:fixed;top:0;left:0;right:0;z-index:9000;background:hsl(var(--primary));color:#fff;text-align:center;padding:5px 16px;font-size:13px;font-family:sans-serif;letter-spacing:.3px">📍 Atendendo em ${city}</div>`
+    : "";
+
+  const waFloat = `<a href="${waUrl}" target="_blank" rel="noopener" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;align-items:center;gap:10px;background:#25D366;color:#fff;padding:14px 22px;border-radius:50px;font-family:sans-serif;font-size:15px;font-weight:700;text-decoration:none;box-shadow:0 6px 24px rgba(37,211,102,.45);transition:transform .2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">${WA_SVG} Falar no WhatsApp</a>`;
+
+  html = html.replace("</body>", `${cityBar}${waFloat}\n</body>`);
+
+  return html;
+}
 
 export function buildFarmaciaFull(site) {
   const wa       = waLink(site.phone, site.business_name);

@@ -17,7 +17,7 @@
 import { waLink } from "../htmlBuilder.js";
 import { buildFashionHTML } from "./fashion.js";
 import { buildAcademiaHTML } from "./academia.js";
-import { buildFarmaciaFull } from "./farmacia.js";
+import { buildFarmaciaFull, buildFarmaciaHTML } from "./farmacia.js";
 import { buildImobiliariaHTML } from "./imobiliaria.js";
 import { buildClinicaHTML } from "./clinica.js";
 
@@ -1336,22 +1336,6 @@ function buildPetshopHTML(site, cfg) {
   return buildFoodHTML(site, petCfg);
 }
 
-function buildFarmaciaHTML(site, cfg) {
-  const farCfg = {
-    bg: "#F0F9FF", surface: "#FFFFFF", surface2: "#E0F2FE",
-    primary: cfg.primary, primaryHover: cfg.accent, accent: "#059669", accentFg: "#FFFFFF",
-    text: "#0C4A6E", muted: "rgba(12,74,110,.55)", border: "rgba(12,74,110,.1)",
-    gradHero: `linear-gradient(135deg, ${cfg.primary}F0 0%, ${cfg.accent}D0 100%)`,
-    glowColor: `${cfg.primary}44`,
-    font: "'Lexend', system-ui, sans-serif",
-    bodyFont: "'Source Sans 3', system-ui, sans-serif",
-    googleFonts: "https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700;800&family=Source+Sans+3:wght@300;400;600;700&display=swap",
-    emoji: cfg.emoji, orderCta: "Falar com Farmacêutico", menuLabel: "Produtos", deliveryLabel: "Entrega",
-    heroTagline: "Saúde e bem-estar para você e sua família.",
-  };
-  return buildFoodHTML(site, farCfg);
-}
-
 // ── Template router ───────────────────────────────────────────────────────────
 
 const NICHE_TEMPLATES = {
@@ -1373,8 +1357,9 @@ const NICHE_TEMPLATES = {
   "Crossfit":             (site) => buildAcademiaHTML(site),
   "Gym":                  (site) => buildAcademiaHTML(site),
   "Pilates":              (site) => buildAcademiaHTML(site),
-  "Farmácia":             (site) => buildFarmaciaFull(site),
-  "Drogaria":             (site) => buildFarmaciaFull(site),
+  "Farmácia":                (site) => buildFarmaciaHTML(site),
+  "Drogaria":                (site) => buildFarmaciaHTML(site),
+  "Farmácia de Manipulação": (site) => buildFarmaciaHTML(site),
   "Imobiliária":          (site) => buildImobiliariaHTML(site),
   "Corretor":             (site) => buildImobiliariaHTML(site),
   "Clínica Odontológica": (site) => buildClinicaHTML(site),
@@ -1387,12 +1372,36 @@ const NICHE_TEMPLATES = {
   "Açaíteria":            (site) => buildFoodHTML(site, FOOD_CONFIGS["Açaíteria"]),
 };
 
+// ── Normalized lookup table (built once at module load) ───────────────────────
+// Allows getTemplate() to match regardless of accents or letter case.
+// e.g. "farmacia", "Farmácia", "FARMÁCIA" → all resolve to the same builder.
+
+function _normalize(str) {
+  return str
+    .toLowerCase()
+    .normalize("NFD")                    // decompõe: "á" → "a" + combining
+    .replace(/[\u0300-\u036f]/g, "")     // remove combining marks
+    .trim();
+}
+
+const NICHE_TEMPLATES_NORMALIZED = Object.fromEntries(
+  Object.entries(NICHE_TEMPLATES).map(([k, v]) => [_normalize(k), v])
+);
+
 /**
  * Get the premium template builder for a niche, or null for generic fallback.
+ * Matching is case-insensitive and accent-insensitive.
+ *
+ * Examples that all resolve to buildFarmaciaHTML:
+ *   "Farmácia", "farmácia", "farmacia", "FARMÁCIA", "FARMACIA"
  *
  * @param {string} niche
  * @returns {function|null}
  */
 export function getTemplate(niche) {
-  return NICHE_TEMPLATES[niche] || null;
+  if (!niche) return null;
+  // 1. Exact match first (fastest, zero allocation)
+  if (NICHE_TEMPLATES[niche]) return NICHE_TEMPLATES[niche];
+  // 2. Normalized fallback
+  return NICHE_TEMPLATES_NORMALIZED[_normalize(niche)] || null;
 }
