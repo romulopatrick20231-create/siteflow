@@ -47,6 +47,7 @@ function getLovableTemplate() {
 export function buildFarmaciaHTML(site) {
   const niche = site.niche || "Farmácia";
   const cfg   = FARMACIA_CONFIGS[niche] || FARMACIA_CONFIGS["Farmácia"];
+  console.log(`[buildFarmaciaHTML] Lovable template ativo — niche="${niche}" primary="${cfg.primary}" business="${site.business_name}"`);
 
   const name   = site.business_name || "FarmaZap";
   const city   = site.city || "";
