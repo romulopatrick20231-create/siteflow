@@ -107,6 +107,10 @@ const siteStripeSchema  = Joi.object({
 // Mapa de normalização: frontend pode enviar slug simples ou acentuado
 const NICHE_NORMALIZE_MAP = {
   'farmacia': 'Farmácia', 'farmácia': 'Farmácia',
+  'drogaria': 'Drogaria',
+  'farmacia de manipulacao': 'Farmácia de Manipulação',
+  'farmácia de manipulação': 'Farmácia de Manipulação',
+  'manipulacao': 'Farmácia de Manipulação', 'manipulação': 'Farmácia de Manipulação',
   'pizzaria': 'Pizzaria',
   'hamburgueria': 'Hamburgueria',
   'restaurante': 'Restaurante',
@@ -149,6 +153,7 @@ const generateSingleSchema = Joi.object({
   niche:        Joi.string().valid(
     "Clínica Odontológica", "Clínica Médica", "Clínica de Fisioterapia",
     "Consultório de Nutrição", "Clínica Veterinária", "Farmácia",
+    "Drogaria", "Farmácia de Manipulação",
     "Salão de Beleza", "Barbearia", "Clínica de Estética",
     "Restaurante", "Pizzaria", "Padaria", "Hamburgueria",
     "Escritório de Advocacia", "Escritório de Contabilidade", "Imobiliária",
@@ -167,6 +172,7 @@ const generateSingleSchema = Joi.object({
 const VALID_NICHES = [
   "Clínica Odontológica", "Clínica Médica", "Clínica de Fisioterapia",
   "Consultório de Nutrição", "Clínica Veterinária", "Farmácia",
+  "Drogaria", "Farmácia de Manipulação",
   "Salão de Beleza", "Barbearia", "Clínica de Estética",
   "Restaurante", "Pizzaria", "Padaria", "Hamburgueria",
   "Escritório de Advocacia", "Escritório de Contabilidade", "Imobiliária",
