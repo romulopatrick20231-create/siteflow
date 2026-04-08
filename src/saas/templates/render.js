@@ -13,9 +13,10 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const HTML_PATH  = join(__dirname, 'farmacia-lovable.html');
 
 const COLORS = {
-  'farmacia':                { primary: '348 85% 46%', accent: '142 72% 29%' },
-  'drogaria':                { primary: '217 90% 56%', accent: '25 95% 53%'  },
-  'farmacia de manipulacao': { primary: '142 72% 29%', accent: '45 93% 47%'  },
+  'farmacia':                  { primary: '348 85% 46%', accent: '142 72% 29%' },
+  'drogaria':                  { primary: '217 90% 56%', accent: '25 95% 53%'  },
+  'farmacia de manipulacao':   { primary: '142 72% 29%', accent: '45 93% 47%'  },
+  'farmacia_de_manipulacao':   { primary: '142 72% 29%', accent: '45 93% 47%'  },
 };
 
 function normalizeNiche(niche) {

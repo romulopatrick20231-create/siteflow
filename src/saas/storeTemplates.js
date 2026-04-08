@@ -533,18 +533,20 @@ const FARMACIA = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const STORE_TEMPLATES = {
-  pizzaria:     PIZZARIA,
-  hamburgueria: HAMBURGUERIA,
-  acai:         ACAI,
-  sorveteria:   SORVETERIA,
-  farmacia:     FARMACIA,
+  pizzaria:                 PIZZARIA,
+  hamburgueria:             HAMBURGUERIA,
+  acai:                     ACAI,
+  sorveteria:               SORVETERIA,
+  farmacia:                 FARMACIA,
+  drogaria:                 FARMACIA,
+  farmacia_de_manipulacao:  FARMACIA,
 };
 
 /** Nichos permitidos para usuários PedeZap (delivery food) */
 export const PEDEZAP_NICHES = ['pizzaria', 'hamburgueria', 'acai', 'sorveteria'];
 
 /** Nichos permitidos para usuários FarmaZap */
-export const FARMAZAP_NICHES = ['farmacia'];
+export const FARMAZAP_NICHES = ['farmacia', 'drogaria', 'farmacia_de_manipulacao'];
 
 /** Mapa type → niches para validação no storeFactory */
 export const NICHES_BY_TYPE = {
