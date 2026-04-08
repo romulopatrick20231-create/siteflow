@@ -37,6 +37,18 @@ import {
 } from '../saas/storeService.js';
 import { createStoreWithTemplate }           from '../saas/storeFactory.js';
 import { SUPPORTED_NICHES, NICHES_BY_TYPE }  from '../saas/storeTemplates.js';
+import { exportHtml }                        from '../saas/exportHtml.js';
+import { deploySite }                        from '../services/vercelService.js';
+
+// Mapeia nicho da loja (store system) → nicho do SaaS builder (Lovable template)
+const STORE_TO_SAAS_NICHE = {
+  farmacia:     'Farmácia',
+  drogaria:     'Drogaria',
+  pizzaria:     'Pizzaria',
+  hamburgueria: 'Hamburgueria',
+  acai:         'Negócio Local',
+  sorveteria:   'Negócio Local',
+};
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -197,12 +209,45 @@ router.post(
     email:       Joi.string().email().required(),
     type:        Joi.string().valid('pedezap', 'farmazap').required(),
     deliveryFee: Joi.number().min(0).default(5.00),
+    phone:       Joi.string().max(20).trim().allow('', null),
+    city:        Joi.string().max(100).trim().allow('', null),
   })),
   async (req, res) => {
     console.log('[create-with-template] VALIDATED BODY:', JSON.stringify(req.body, null, 2));
     try {
       const result = await createStoreWithTemplate(req.body);
-      send(res, result, 201);
+
+      // ── Gera + publica site Lovable no Vercel (não-fatal) ──────────────────
+      let site_url = null;
+      try {
+        const saasNiche = STORE_TO_SAAS_NICHE[req.body.niche] || 'Negócio Local';
+        const siteObj = {
+          business_name: req.body.name,
+          niche:         saasNiche,
+          phone:         req.body.phone || '',
+          city:          req.body.city  || '',
+          slug:          result.store.slug,
+          images:        [],
+          content:       { pages: [] },
+        };
+        console.log('[create-with-template] Gerando site Lovable para nicho:', saasNiche);
+        const { html, css, js } = exportHtml(siteObj);
+        const deployed = await deploySite({
+          slug:  result.store.slug,
+          files: [
+            { name: 'index.html', content: html },
+            { name: 'style.css',  content: css  },
+            { name: 'script.js',  content: js   },
+          ],
+        });
+        site_url = deployed.url;
+        console.log('[create-with-template] Site publicado:', site_url);
+      } catch (siteErr) {
+        console.error('[create-with-template] Site generation falhou (não-fatal):', siteErr.message);
+      }
+      // ──────────────────────────────────────────────────────────────────────
+
+      send(res, { ...result, site_url }, 201);
     } catch (err) {
       console.error('[create-with-template] CREATE STORE ERROR:', err);
       const status = err.statusCode ?? 500;
