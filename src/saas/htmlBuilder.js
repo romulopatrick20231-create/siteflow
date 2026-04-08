@@ -15,7 +15,6 @@
  */
 
 import { getDesign, buildFontLinks, getNicheCopy } from "./designKnowledge.js";
-import { getTemplate } from "./templates/index.js";
 
 // ── Rich content extraction ───────────────────────────────────────────────────
 
@@ -721,10 +720,6 @@ function renderExtraSections(site, { wa, copy, d: design }) {
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export function buildHTML(site) {
-  // Use premium niche template when available
-  const premiumTemplate = getTemplate(site.niche);
-  if (premiumTemplate) return premiumTemplate(site);
-
   const d         = getDesign(site.niche);
   const copy      = getNicheCopy(site.niche, site.city);
   const p         = d.palette;

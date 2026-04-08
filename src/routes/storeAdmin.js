@@ -37,18 +37,8 @@ import {
 } from '../saas/storeService.js';
 import { createStoreWithTemplate }           from '../saas/storeFactory.js';
 import { SUPPORTED_NICHES, NICHES_BY_TYPE }  from '../saas/storeTemplates.js';
-import { exportHtml }                        from '../saas/exportHtml.js';
+import { renderTemplate }                     from '../saas/templates/render.js';
 import { deploySite }                        from '../services/vercelService.js';
-
-// Mapeia nicho da loja (store system) → nicho do SaaS builder (Lovable template)
-const STORE_TO_SAAS_NICHE = {
-  farmacia:     'Farmácia',
-  drogaria:     'Drogaria',
-  pizzaria:     'Pizzaria',
-  hamburgueria: 'Hamburgueria',
-  acai:         'Negócio Local',
-  sorveteria:   'Negócio Local',
-};
 
 const router = Router();
 router.use(requireAuth, requireAdmin);
@@ -217,28 +207,20 @@ router.post(
     try {
       const result = await createStoreWithTemplate(req.body);
 
-      // ── Gera + publica site Lovable no Vercel (não-fatal) ──────────────────
+      // ── Gera + publica site no Vercel (não-fatal) ─────────────────────────
       let site_url = null;
       try {
-        const saasNiche = STORE_TO_SAAS_NICHE[req.body.niche] || 'Negócio Local';
-        const siteObj = {
+        console.log('[create-with-template] Gerando site para:', req.body.name, '| niche:', req.body.niche);
+        const html = renderTemplate({
           business_name: req.body.name,
-          niche:         saasNiche,
+          niche:         req.body.niche,
           phone:         req.body.phone || '',
           city:          req.body.city  || '',
-          slug:          result.store.slug,
-          images:        [],
-          content:       { pages: [] },
-        };
-        console.log('[create-with-template] Gerando site Lovable para nicho:', saasNiche);
-        const { html, css, js } = exportHtml(siteObj);
+        });
+        console.log('[create-with-template] HTML gerado:', html.length, 'bytes');
         const deployed = await deploySite({
           slug:  result.store.slug,
-          files: [
-            { name: 'index.html', content: html },
-            { name: 'style.css',  content: css  },
-            { name: 'script.js',  content: js   },
-          ],
+          files: [{ name: 'index.html', content: html }],
         });
         site_url = deployed.url;
         console.log('[create-with-template] Site publicado:', site_url);
