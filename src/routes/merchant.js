@@ -57,6 +57,8 @@ import {
   updateMerchantProduct,
   deleteMerchantProduct,
   uploadProductImage,
+  uploadStoreLogo,
+  getStoreLogo,
   getStoreSettings,
   updateStoreSettings,
   getMerchantCategories,
@@ -285,6 +287,35 @@ router.post(
     const store  = await getMerchantStore(req.userId);
     const result = await markFollowupSent(req.body.orderId, store.id, req.body.type);
     send(res, result);
+  })
+);
+
+// ── Logo da loja ──────────────────────────────────────────────────────────────
+
+/**
+ * GET /merchant/logo
+ * Retorna a URL do logo atual da loja.
+ */
+router.get('/logo', asyncHandler(async (req, res) => {
+  const result = await getStoreLogo(req.userId);
+  send(res, result);
+}));
+
+/**
+ * POST /merchant/logo
+ * Faz upload do logo da loja.
+ * Body: { file: "data:image/jpeg;base64,...", fileName: "logo.png", mimeType: "image/png" }
+ */
+router.post(
+  '/logo',
+  validate(Joi.object({
+    file:     Joi.string().required(),
+    fileName: Joi.string().max(200).required(),
+    mimeType: Joi.string().valid('image/jpeg', 'image/png', 'image/webp').required(),
+  })),
+  asyncHandler(async (req, res) => {
+    const result = await uploadStoreLogo(req.userId, req.body);
+    send(res, result, 201);
   })
 );
 

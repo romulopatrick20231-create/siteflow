@@ -477,3 +477,54 @@ export async function deleteMerchantCategory(userId, categoryId) {
   if (error) throw new Error(`deleteMerchantCategory: ${error.message}`);
   return { deleted: true };
 }
+
+// ── Logo da loja ──────────────────────────────────────────────────────────────
+
+/**
+ * Faz upload do logo da loja e salva a URL no campo logo_url da tabela stores.
+ * Body: { file: "data:image/jpeg;base64,...", fileName, mimeType }
+ */
+export async function uploadStoreLogo(userId, { file, fileName, mimeType }) {
+  if (!ALLOWED_TYPES.has(mimeType)) {
+    throw Object.assign(new Error('Tipo inválido. Use: JPEG, PNG ou WebP'), { statusCode: 400 });
+  }
+
+  const store = await getMerchantStore(userId);
+  const db    = getAdminClient();
+
+  const base64Data = file.replace(/^data:[^;]+;base64,/, '');
+  const buffer     = Buffer.from(base64Data, 'base64');
+
+  if (buffer.length > MAX_FILE_SIZE) {
+    throw Object.assign(new Error('Arquivo muito grande. Máximo 5 MB'), { statusCode: 400 });
+  }
+
+  const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 100);
+  const path     = `store-logos/${store.id}/logo-${Date.now()}-${safeName}`;
+
+  const { error: uploadErr } = await db.storage
+    .from(PRODUCT_BUCKET)
+    .upload(path, buffer, { contentType: mimeType, upsert: true });
+
+  if (uploadErr) throw new Error(`Falha no upload do logo: ${uploadErr.message}`);
+
+  const { data: { publicUrl } } = db.storage.from(PRODUCT_BUCKET).getPublicUrl(path);
+
+  // Salva no campo logo_url da loja
+  const { error: updateErr } = await db
+    .from('stores')
+    .update({ logo_url: publicUrl, updated_at: new Date().toISOString() })
+    .eq('id', store.id);
+
+  if (updateErr) throw new Error(`updateStoreLogo: ${updateErr.message}`);
+
+  return { logo_url: publicUrl };
+}
+
+/**
+ * Retorna o logo atual da loja.
+ */
+export async function getStoreLogo(userId) {
+  const store = await getMerchantStore(userId);
+  return { logo_url: store.logo_url || null };
+}

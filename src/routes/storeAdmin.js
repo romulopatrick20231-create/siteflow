@@ -201,6 +201,7 @@ router.post(
     deliveryFee: Joi.number().min(0).default(5.00),
     phone:       Joi.string().max(20).trim().allow('', null),
     city:        Joi.string().max(100).trim().allow('', null),
+    logo_url:    Joi.string().uri().allow('', null),
   })),
   async (req, res) => {
     console.log('[create-with-template] VALIDATED BODY:', JSON.stringify(req.body, null, 2));
@@ -214,8 +215,9 @@ router.post(
         const html = renderTemplate({
           business_name: req.body.name,
           niche:         req.body.niche,
-          phone:         req.body.phone || '',
-          city:          req.body.city  || '',
+          phone:         req.body.phone    || '',
+          city:          req.body.city     || '',
+          logo_url:      req.body.logo_url || null,
         });
         console.log('[create-with-template] HTML gerado:', html.length, 'bytes');
         const deployed = await deploySite({

@@ -84,6 +84,16 @@ export function renderTemplate(site) {
   // 1. Substitui nome da marca
   html = html.split('FarmaZap').join(name);
 
+  // 1b. Substitui logo se o cliente tiver enviado o seu
+  const logoUrl = site.logo_url || null;
+  if (logoUrl) {
+    // O React bundle referencia o logo pela constante compilada — substituímos a string
+    html = html.split('/assets/farmazap-logo-Q35RW_XK.png').join(logoUrl);
+    html = html.split('"/favicon.png"').join(`"${logoUrl}"`);
+    html = html.replace('href="/favicon.png"', `href="${logoUrl}"`);
+    console.log(`[renderTemplate] Logo personalizado: ${logoUrl}`);
+  }
+
   // 2. Override de cores CSS
   const cssOverride = [
     ':root{',
