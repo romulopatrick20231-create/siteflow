@@ -660,11 +660,40 @@ router.post(
       siteId:       site.id,
     });
 
+    // ── Auto-publish to Vercel ────────────────────────────────────────────────
+    let vercelUrl = null;
+    try {
+      const fullSite = await getSiteForBuild(site.id);
+      const { html, css, js } = exportHtml(fullSite);
+      const deployed = await deploySite({
+        slug:  fullSite.slug,
+        files: [
+          { name: "index.html", content: html },
+          { name: "style.css",  content: css  },
+          { name: "script.js",  content: js   },
+        ],
+      });
+      vercelUrl = deployed.url;
+      const now = new Date().toISOString();
+      const db = getAdminClient();
+      await db.from("sites").update({
+        status:            "published",
+        site_url:          vercelUrl,
+        publish_count:     1,
+        last_published_at: now,
+        updated_at:        now,
+      }).eq("id", site.id);
+      logger.info("Admin generate-single auto-published", { siteId: site.id, vercelUrl });
+    } catch (pubErr) {
+      logger.error("Admin generate-single publish failed (non-fatal)", { siteId: site.id, error: pubErr.message });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     send(res, {
       id:     site.id,
       name:   lead.businessName,
-      status: "draft",
-      url:    null,
+      status: vercelUrl ? "published" : "draft",
+      url:    vercelUrl,
       niche:  siteJson.niche,
       userId,
     }, 201);
@@ -678,13 +707,11 @@ router.post(
 router.get(
   "/template-check",
   asyncHandler(async (req, res) => {
-    const { getTemplate } = await import("../saas/templates/index.js");
     const niche = (req.query.niche || "Farmácia").toString();
-    const fn    = getTemplate(niche);
     send(res, {
       niche,
-      template:  fn ? fn.name || "anônima" : null,
-      isLovable: fn ? fn.name === "buildFarmaciaHTML" : false,
+      template:  "renderTemplate",
+      isLovable: true,
       timestamp: new Date().toISOString(),
     });
   })
