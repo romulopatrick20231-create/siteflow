@@ -51,12 +51,7 @@ export function renderTemplate(site) {
   // 1. Carrega template base
   let html = readFileSync(HTML_PATH, 'utf8');
 
-  // 2. Corrige paths relativos de assets → URL absoluta do Lovable CDN
-  //    O template usa /assets/... que funciona no lovable.app mas não no Vercel
-  html = html.split('src="/assets/').join('src="https://lovable.app/assets/');
-  html = html.split('href="/assets/').join('href="https://lovable.app/assets/');
-
-  // 3. Substitui todas as ocorrências de "FarmaZap" pelo nome real
+  // 2. Substitui todas as ocorrências de "FarmaZap" pelo nome real
   html = html.split('FarmaZap').join(name);
 
   // 4. Injeta override de cores no CSS (vai após o último </style>)
