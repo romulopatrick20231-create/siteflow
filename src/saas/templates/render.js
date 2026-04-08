@@ -1,23 +1,47 @@
 /**
- * render.js — Único template do sistema: Farmácia / Drogaria / Farmácia de Manipulação.
+ * render.js — Templates por nicho: Farmácia / Drogaria / Farmácia de Manipulação.
  *
- * Uma função, zero dependências internas.
- * Lê farmacia-lovable.html e injeta os dados do cliente.
+ * Cada nicho tem seu próprio arquivo HTML (build Lovable separado).
+ * Fallback: se o arquivo do nicho não existir, usa farmacia-lovable.html.
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const HTML_PATH  = join(__dirname, 'farmacia-lovable.html');
 
-const COLORS = {
-  'farmacia':                  { primary: '348 85% 46%', accent: '142 72% 29%' },
-  'drogaria':                  { primary: '217 90% 56%', accent: '25 95% 53%'  },
-  'farmacia de manipulacao':   { primary: '142 72% 29%', accent: '45 93% 47%'  },
-  'farmacia_de_manipulacao':   { primary: '142 72% 29%', accent: '45 93% 47%'  },
+// ── Mapa nicho → arquivo HTML ─────────────────────────────────────────────
+// Quando tiver os 3 templates prontos, cada nicho carrega o seu arquivo.
+// Enquanto só tem 1 template, todos usam farmacia-lovable.html como fallback.
+const NICHE_TEMPLATES = {
+  'farmacia':                 'farmacia-vermelho.html',
+  'drogaria':                 'farmacia-azul.html',
+  'farmacia de manipulacao':  'farmacia-verde.html',
+  'farmacia_de_manipulacao':  'farmacia-verde.html',
 };
+
+const FALLBACK_HTML = 'farmacia-lovable.html';
+
+// ── Cores de cada nicho (injetadas no CSS como override) ───────────────────
+const COLORS = {
+  'farmacia':                 { primary: '348 85% 46%', accent: '142 72% 29%' },
+  'drogaria':                 { primary: '217 90% 56%', accent: '25 95% 53%'  },
+  'farmacia de manipulacao':  { primary: '142 72% 29%', accent: '45 93% 47%'  },
+  'farmacia_de_manipulacao':  { primary: '142 72% 29%', accent: '45 93% 47%'  },
+};
+
+// ── Cache de templates em memória ─────────────────────────────────────────
+const _cache = {};
+function loadTemplate(filename) {
+  if (!_cache[filename]) {
+    const path = join(__dirname, filename);
+    _cache[filename] = existsSync(path)
+      ? readFileSync(path, 'utf8')
+      : null;
+  }
+  return _cache[filename];
+}
 
 function normalizeNiche(niche) {
   return (niche || '')
@@ -41,21 +65,26 @@ export function renderTemplate(site) {
   const phone = (site.phone || '').replace(/\D/g, '');
   const city  = (site.city  || '').trim();
 
-  const cfg = COLORS[niche] || COLORS['farmacia'];
+  const cfg         = COLORS[niche] || COLORS['farmacia'];
+  const templateFile = NICHE_TEMPLATES[niche] || FALLBACK_HTML;
+
+  // Tenta carregar o template específico do nicho; cai no fallback se não existir
+  let html = loadTemplate(templateFile);
+  if (!html) {
+    console.warn(`[renderTemplate] ${templateFile} não encontrado, usando fallback`);
+    html = loadTemplate(FALLBACK_HTML);
+  }
 
   const waUrl = phone
     ? `https://wa.me/55${phone}?text=${encodeURIComponent(`Olá, ${name}! Vim pelo site.`)}`
     : '#';
 
-  console.log(`[renderTemplate] niche="${niche}" business="${name}" phone="${phone}" city="${city}"`);
+  console.log(`[renderTemplate] niche="${niche}" template="${templateFile}" business="${name}" city="${city}"`);
 
-  // 1. Carrega template base
-  let html = readFileSync(HTML_PATH, 'utf8');
-
-  // 2. Substitui todas as ocorrências de "FarmaZap" pelo nome real
+  // 1. Substitui nome da marca
   html = html.split('FarmaZap').join(name);
 
-  // 4. Injeta override de cores no CSS (vai após o último </style>)
+  // 2. Override de cores CSS
   const cssOverride = [
     ':root{',
     `--primary:${cfg.primary};`,
@@ -68,14 +97,13 @@ export function renderTemplate(site) {
   ].join('');
   html = html.replace('</style>', `${cssOverride}</style>`);
 
-  // 4. Monta injeções antes de </body>
+  // 3. City bar + botão WhatsApp + DOM patch
   const cityBar = city
     ? `<div style="position:fixed;top:0;left:0;right:0;z-index:9000;background:hsl(${cfg.primary});color:#fff;text-align:center;padding:5px 16px;font-size:13px;font-family:sans-serif;letter-spacing:.3px">📍 Atendendo em ${city}</div>`
     : '';
 
   const waBtn = `<a href="${waUrl}" target="_blank" rel="noopener" style="position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;align-items:center;gap:10px;background:#25D366;color:#fff;padding:14px 22px;border-radius:50px;font-family:sans-serif;font-size:15px;font-weight:700;text-decoration:none;box-shadow:0 6px 24px rgba(37,211,102,.45);transition:transform .2s" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">${WA_ICON} Falar no WhatsApp</a>`;
 
-  // DOM patch: substitui "FarmaZap" residual que o React possa renderizar após mount
   const safeName = name.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   const domPatch = `<script>
 (function(){
