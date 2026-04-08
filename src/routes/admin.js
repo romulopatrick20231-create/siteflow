@@ -546,15 +546,8 @@ router.post(
 
     logger.info("Admin force-publish started", { adminId: req.userId, siteId, siteName: site.business_name });
 
-    const { html, css, js } = exportHtml(site);
-    const { url } = await deploySite({
-      slug:  site.slug,
-      files: [
-        { name: "index.html", content: html },
-        { name: "style.css",  content: css  },
-        { name: "script.js",  content: js   },
-      ],
-    });
+    const { files } = exportHtml(site);
+    const { url } = await deploySite({ slug: site.slug, files });
 
     // Bypass markSitePublished (which re-checks status) — update DB directly
     const now = new Date().toISOString();
@@ -664,15 +657,8 @@ router.post(
     let vercelUrl = null;
     try {
       const fullSite = await getSiteForBuild(site.id);
-      const { html, css, js } = exportHtml(fullSite);
-      const deployed = await deploySite({
-        slug:  fullSite.slug,
-        files: [
-          { name: "index.html", content: html },
-          { name: "style.css",  content: css  },
-          { name: "script.js",  content: js   },
-        ],
-      });
+      const { files } = exportHtml(fullSite);
+      const deployed = await deploySite({ slug: fullSite.slug, files });
       vercelUrl = deployed.url;
       const now = new Date().toISOString();
       const db = getAdminClient();

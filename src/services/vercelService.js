@@ -142,9 +142,9 @@ export async function deploySite({ slug, files }) {
 
   const payload = {
     name: projectName,
-    files: files.map(({ name, content }) => ({
+    files: files.map(({ name, content, encoding }) => ({
       file:     name,
-      data:     toBase64(content),
+      data:     encoding === "base64" ? content : toBase64(content),
       encoding: "base64",
     })),
     // Static site — no framework, no build step → near-instant READY

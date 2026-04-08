@@ -77,17 +77,10 @@ export async function publishSite(siteId, userId) {
   }
 
   // ── 4. Generate static files ──────────────────────────────────────────────
-  const { html, css, js } = exportHtml(site);
+  const { files } = exportHtml(site);
 
   // ── 5. Deploy to Vercel ───────────────────────────────────────────────────
-  const { url } = await deploySite({
-    slug:  site.slug,
-    files: [
-      { name: "index.html", content: html },
-      { name: "style.css",  content: css  },
-      { name: "script.js",  content: js   },
-    ],
-  });
+  const { url } = await deploySite({ slug: site.slug, files });
 
   const elapsedMs = Date.now() - t0;
   logger.info("Publish pipeline complete", { siteId, url, elapsedMs });
