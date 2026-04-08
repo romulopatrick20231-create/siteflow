@@ -12,6 +12,7 @@
  */
 
 import { buildHTML } from "./htmlBuilder.js";
+import { getTemplate } from "./templates/index.js";
 
 // ── Minifiers ─────────────────────────────────────────────────────────────────
 
@@ -498,6 +499,14 @@ const STYLE_BLOCK_RE = /<style>([\s\S]*?)<\/style>/;
  *   All three strings are minified and ready to pass to vercelService.deploySite.
  */
 export function exportHtml(site) {
+  // ── 0. Premium niche templates are self-contained (React SPA, inline CSS/JS).
+  //       Return them as-is — do NOT strip <style> or inject the legacy SITE_JS.
+  const premiumBuilder = getTemplate(site.niche);
+  if (premiumBuilder) {
+    const html = premiumBuilder(site);
+    return { html, css: "", js: "" };
+  }
+
   // ── 1. Build canonical HTML (single source of truth for markup + CSS) ────
   const fullHtml = buildHTML(site);
 
