@@ -1,62 +1,69 @@
-import { randomUUID } from "crypto"
+import { supabase } from "../../lib/supabase"
 
 export interface Customer {
   id: string
   tenant_id: string
   phone: string
   name: string | null
-  last_interaction: Date
-  created_at: Date
+  last_interaction: string
+  created_at: string
 }
 
-const store = new Map<string, Customer>()
+export async function findByPhone(tenant_id: string, phone: string): Promise<Customer | undefined> {
+  const { data, error } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("tenant_id", tenant_id)
+    .eq("phone", phone)
+    .single()
 
-function key(tenant_id: string, phone: string): string {
-  return `${tenant_id}::${phone}`
+  if (error || !data) return undefined
+  return data as Customer
 }
 
-export function findByPhone(tenant_id: string, phone: string): Customer | undefined {
-  return store.get(key(tenant_id, phone))
-}
-
-export function createCustomer(tenant_id: string, phone: string, name?: string): Customer {
-  const existing = findByPhone(tenant_id, phone)
+export async function createCustomer(
+  tenant_id: string,
+  phone: string,
+  name?: string
+): Promise<Customer> {
+  const existing = await findByPhone(tenant_id, phone)
   if (existing) return existing
 
-  const customer: Customer = {
-    id: randomUUID(),
-    tenant_id,
-    phone,
-    name: name ?? null,
-    last_interaction: new Date(),
-    created_at: new Date(),
-  }
+  const { data, error } = await supabase
+    .from("customers")
+    .insert({ tenant_id, phone, name: name ?? null })
+    .select()
+    .single()
 
-  store.set(key(tenant_id, phone), customer)
-  return customer
+  if (error || !data) throw new Error(error?.message ?? "Failed to create customer")
+  return data as Customer
 }
 
-export function updateName(customer_id: string, name: string): void {
-  for (const customer of store.values()) {
-    if (customer.id === customer_id) {
-      customer.name = name
-      return
-    }
-  }
+export async function updateName(customer_id: string, name: string): Promise<void> {
+  const { error } = await supabase
+    .from("customers")
+    .update({ name })
+    .eq("id", customer_id)
+
+  if (error) throw new Error(error.message)
 }
 
-export function updateLastInteraction(customer_id: string): void {
-  for (const customer of store.values()) {
-    if (customer.id === customer_id) {
-      customer.last_interaction = new Date()
-      return
-    }
-  }
+export async function updateLastInteraction(customer_id: string): Promise<void> {
+  const { error } = await supabase
+    .from("customers")
+    .update({ last_interaction: new Date().toISOString() })
+    .eq("id", customer_id)
+
+  if (error) throw new Error(error.message)
 }
 
-export function findById(customer_id: string): Customer | undefined {
-  for (const customer of store.values()) {
-    if (customer.id === customer_id) return customer
-  }
-  return undefined
+export async function findById(customer_id: string): Promise<Customer | undefined> {
+  const { data, error } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("id", customer_id)
+    .single()
+
+  if (error || !data) return undefined
+  return data as Customer
 }
