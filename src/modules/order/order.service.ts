@@ -1,13 +1,17 @@
 import { supabase } from "../../lib/supabase"
-import { validateAndDecrementStock } from "../product/product.service"
+import { getProductById } from "../product/product.service"
+import { getVariationById } from "../product/product.variation.service"
+import { getAddonsByIds } from "../product/product.addon.service"
 
 export type PaymentMethod = "credit" | "debit" | "pix" | "cash"
 export type OrderStatus = "pending" | "preparing" | "on_route" | "delivered" | "paid"
 
 export interface OrderItem {
   product_id: string
+  variation_id?: string
+  addons?: string[]
   quantity: number
-  price: number
+  unit_price?: number
 }
 
 export interface Order {
@@ -22,25 +26,105 @@ export interface Order {
   created_at: string
 }
 
-export async function createOrder(
-  data: Omit<Order, "id" | "status" | "created_at">
-): Promise<Order> {
-  const hasProductIds = data.items.length > 0 && data.items[0]?.product_id
+async function resolveItemPrice(
+  tenant_id: string,
+  item: OrderItem
+): Promise<{ unit_price: number; stock: number; stock_type: "variation" | "product"; stock_ref_id: string }> {
+  const product = await getProductById(item.product_id, tenant_id)
+  if (!product) throw new Error(`Product ${item.product_id} not found`)
+  if (!product.active) throw new Error(`Product "${product.name}" is not available`)
 
-  if (hasProductIds) {
-    await validateAndDecrementStock(
-      data.tenant_id,
-      data.items.map((i) => ({ product_id: i.product_id, quantity: i.quantity }))
-    )
+  let base_price = product.price ?? 0
+  let stock = product.stock
+  let stock_type: "variation" | "product" = "product"
+  let stock_ref_id = product.id
+
+  if (item.variation_id) {
+    const variation = await getVariationById(item.variation_id)
+    if (!variation) throw new Error(`Variation ${item.variation_id} not found`)
+    base_price = variation.price
+    stock = variation.stock
+    stock_type = "variation"
+    stock_ref_id = variation.id
+  }
+
+  let addons_total = 0
+  if (item.addons && item.addons.length > 0) {
+    const addons = await getAddonsByIds(item.addons)
+    addons_total = addons.reduce((sum, a) => sum + a.price, 0)
+  }
+
+  const unit_price = (base_price + addons_total) * item.quantity
+
+  return { unit_price, stock, stock_type, stock_ref_id }
+}
+
+async function decrementItemStock(
+  stock_type: "variation" | "product",
+  stock_ref_id: string,
+  tenant_id: string,
+  quantity: number
+): Promise<void> {
+  if (stock_type === "variation") {
+    const { data: variation } = await supabase
+      .from("product_variations")
+      .select("stock")
+      .eq("id", stock_ref_id)
+      .single()
+
+    if (!variation) throw new Error(`Variation ${stock_ref_id} not found`)
+    await supabase
+      .from("product_variations")
+      .update({ stock: variation.stock - quantity })
+      .eq("id", stock_ref_id)
+  } else {
+    const product = await getProductById(stock_ref_id, tenant_id)
+    if (!product) throw new Error(`Product ${stock_ref_id} not found`)
+    await supabase
+      .from("products")
+      .update({ stock: product.stock - quantity })
+      .eq("id", stock_ref_id)
+      .eq("tenant_id", tenant_id)
+  }
+}
+
+export async function createOrder(
+  data: Omit<Order, "id" | "status" | "created_at" | "total_amount"> & { total_amount?: number }
+): Promise<Order> {
+  let total_amount = 0
+  const resolvedItems: Array<OrderItem & { _stock: number; _stock_type: "variation" | "product"; _stock_ref_id: string }> = []
+
+  for (const item of data.items) {
+    const { unit_price, stock, stock_type, stock_ref_id } = await resolveItemPrice(data.tenant_id, item)
+
+    if (stock < item.quantity) {
+      throw new Error(`Insufficient stock for product ${item.product_id}`)
+    }
+
+    total_amount += unit_price
+    resolvedItems.push({ ...item, unit_price, _stock: stock, _stock_type: stock_type, _stock_ref_id: stock_ref_id })
   }
 
   const { data: created, error } = await supabase
     .from("orders")
-    .insert({ ...data, status: "pending" })
+    .insert({
+      tenant_id: data.tenant_id,
+      customer_id: data.customer_id,
+      items: resolvedItems.map(({ _stock, _stock_type, _stock_ref_id, ...item }) => item),
+      total_amount,
+      payment_method: data.payment_method,
+      status: "pending",
+      address: data.address,
+    })
     .select()
     .single()
 
   if (error || !created) throw new Error(error?.message ?? "Failed to create order")
+
+  for (const item of resolvedItems) {
+    await decrementItemStock(item._stock_type, item._stock_ref_id, data.tenant_id, item.quantity)
+  }
+
   return created as Order
 }
 
@@ -91,7 +175,6 @@ export async function getDashboardMetrics(tenant_id: string) {
 
   const todayOrders = allOrders.filter((o) => o.created_at >= startOfDay)
   const monthOrders = allOrders.filter((o) => o.created_at >= startOfMonth)
-
   const total_today = todayOrders.reduce((sum, o) => sum + (o.total_amount ?? 0), 0)
   const total_month = monthOrders.reduce((sum, o) => sum + (o.total_amount ?? 0), 0)
   const total_orders = allOrders.length
