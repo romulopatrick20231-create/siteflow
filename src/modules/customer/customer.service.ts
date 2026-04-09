@@ -5,6 +5,7 @@ export interface Customer {
   tenant_id: string
   phone: string
   name: string | null
+  address: string | null
   last_interaction: string
   created_at: string
 }
@@ -31,7 +32,7 @@ export async function createCustomer(
 
   const { data, error } = await supabase
     .from("customers")
-    .insert({ tenant_id, phone, name: name ?? null })
+    .insert({ tenant_id, phone, name: name ?? null, address: null })
     .select()
     .single()
 
@@ -43,6 +44,15 @@ export async function updateName(customer_id: string, name: string): Promise<voi
   const { error } = await supabase
     .from("customers")
     .update({ name })
+    .eq("id", customer_id)
+
+  if (error) throw new Error(error.message)
+}
+
+export async function updateAddress(customer_id: string, address: string): Promise<void> {
+  const { error } = await supabase
+    .from("customers")
+    .update({ address })
     .eq("id", customer_id)
 
   if (error) throw new Error(error.message)
