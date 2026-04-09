@@ -3,6 +3,7 @@ import { findByPhone, createCustomer, updateName, findById as findCustomerById }
 import { createOrder, getOrdersByTenant, getById, updateStatus, PaymentMethod, OrderStatus } from "./order.service"
 import { sendMessage } from "../whatsapp/sender.service"
 import { Tenant } from "../tenant/tenant.types"
+import { authMiddleware } from "../../middlewares/auth.middleware"
 
 const router = Router()
 
@@ -12,11 +13,15 @@ export function registerTenant(tenant: Tenant): void {
   tenantStore.set(tenant.id, tenant)
 }
 
-router.get("/orders", async (req: Request, res: Response) => {
+router.get("/orders", authMiddleware, async (req: Request, res: Response) => {
   const { tenant_id } = req.query
 
   if (!tenant_id || typeof tenant_id !== "string") {
     return res.status(400).json({ error: "Missing tenant_id" })
+  }
+
+  if (req.user!.tenant_id !== tenant_id) {
+    return res.status(403).json({ error: "Forbidden" })
   }
 
   const orders = await getOrdersByTenant(tenant_id)
@@ -39,12 +44,16 @@ router.get("/orders", async (req: Request, res: Response) => {
   return res.json(result)
 })
 
-router.get("/orders/:id", async (req: Request, res: Response) => {
+router.get("/orders/:id", authMiddleware, async (req: Request, res: Response) => {
   const { tenant_id } = req.query
   const { id } = req.params
 
   if (!tenant_id || typeof tenant_id !== "string") {
     return res.status(400).json({ error: "Missing tenant_id" })
+  }
+
+  if (req.user!.tenant_id !== tenant_id) {
+    return res.status(403).json({ error: "Forbidden" })
   }
 
   const order = await getById(id, tenant_id)
@@ -62,12 +71,16 @@ router.get("/orders/:id", async (req: Request, res: Response) => {
   })
 })
 
-router.patch("/orders/:id/status", async (req: Request, res: Response) => {
+router.patch("/orders/:id/status", authMiddleware, async (req: Request, res: Response) => {
   const { tenant_id, status } = req.body
   const { id } = req.params
 
   if (!tenant_id || !status) {
     return res.status(400).json({ error: "Missing tenant_id or status" })
+  }
+
+  if (req.user!.tenant_id !== tenant_id) {
+    return res.status(403).json({ error: "Forbidden" })
   }
 
   const order = await updateStatus(id, status as OrderStatus, tenant_id)

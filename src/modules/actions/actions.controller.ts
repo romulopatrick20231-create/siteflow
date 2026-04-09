@@ -3,6 +3,7 @@ import { findById } from "../customer/customer.service"
 import { updateStatus, getById } from "../order/order.service"
 import { sendMessage } from "../whatsapp/sender.service"
 import { Tenant } from "../tenant/tenant.types"
+import { authMiddleware } from "../../middlewares/auth.middleware"
 
 const router = Router()
 
@@ -12,11 +13,15 @@ export function registerTenant(tenant: Tenant): void {
   tenantStore.set(tenant.id, tenant)
 }
 
-router.post("/actions/send-route-message", async (req: Request, res: Response) => {
+router.post("/actions/send-route-message", authMiddleware, async (req: Request, res: Response) => {
   const { tenant_id, customer_id, order_id } = req.body
 
   if (!tenant_id || !customer_id) {
     return res.status(400).json({ error: "Missing tenant_id or customer_id" })
+  }
+
+  if (req.user!.tenant_id !== tenant_id) {
+    return res.status(403).json({ error: "Forbidden" })
   }
 
   const tenant = tenantStore.get(tenant_id)
@@ -34,7 +39,7 @@ router.post("/actions/send-route-message", async (req: Request, res: Response) =
   }
 
   if (order_id) {
-    await updateStatus(order_id, "on_route")
+    await updateStatus(order_id, "on_route", tenant_id)
   }
 
   const name = customer.name ?? "Cliente"
@@ -43,14 +48,18 @@ router.post("/actions/send-route-message", async (req: Request, res: Response) =
   return res.json({ success: true })
 })
 
-router.patch("/actions/mark-paid", async (req: Request, res: Response) => {
-  const { order_id } = req.body
+router.patch("/actions/mark-paid", authMiddleware, async (req: Request, res: Response) => {
+  const { order_id, tenant_id } = req.body
 
   if (!order_id) {
     return res.status(400).json({ error: "Missing order_id" })
   }
 
-  const order = await updateStatus(order_id, "paid")
+  if (tenant_id && req.user!.tenant_id !== tenant_id) {
+    return res.status(403).json({ error: "Forbidden" })
+  }
+
+  const order = await updateStatus(order_id, "paid", req.user!.tenant_id)
   if (!order) {
     return res.status(404).json({ error: "Order not found" })
   }
