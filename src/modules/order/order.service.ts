@@ -1,13 +1,20 @@
 import { supabase } from "../../lib/supabase"
+import { validateAndDecrementStock } from "../product/product.service"
 
 export type PaymentMethod = "credit" | "debit" | "pix" | "cash"
 export type OrderStatus = "pending" | "preparing" | "on_route" | "delivered" | "paid"
+
+export interface OrderItem {
+  product_id: string
+  quantity: number
+  price: number
+}
 
 export interface Order {
   id: string
   tenant_id: string
   customer_id: string
-  items: any[]
+  items: OrderItem[]
   total_amount: number
   payment_method: PaymentMethod
   status: OrderStatus
@@ -18,6 +25,15 @@ export interface Order {
 export async function createOrder(
   data: Omit<Order, "id" | "status" | "created_at">
 ): Promise<Order> {
+  const hasProductIds = data.items.length > 0 && data.items[0]?.product_id
+
+  if (hasProductIds) {
+    await validateAndDecrementStock(
+      data.tenant_id,
+      data.items.map((i) => ({ product_id: i.product_id, quantity: i.quantity }))
+    )
+  }
+
   const { data: created, error } = await supabase
     .from("orders")
     .insert({ ...data, status: "pending" })
