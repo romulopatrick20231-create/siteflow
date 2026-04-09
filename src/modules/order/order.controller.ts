@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express"
-import { findByPhone, createCustomer } from "../customer/customer.service"
+import { findByPhone, createCustomer, updateName } from "../customer/customer.service"
 import { createOrder, PaymentMethod } from "./order.service"
 
 const router = Router()
@@ -12,12 +12,16 @@ router.post("/orders/from-site", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Missing required fields" })
   }
 
-  let customer = findByPhone(tenant_id, customerData.phone)
+  let customer = await findByPhone(tenant_id, customerData.phone)
+
   if (!customer) {
-    customer = createCustomer(tenant_id, customerData.phone, customerData.name)
+    customer = await createCustomer(tenant_id, customerData.phone, customerData.name)
+  } else if (!customer.name && customerData.name) {
+    await updateName(customer.id, customerData.name)
+    customer.name = customerData.name
   }
 
-  const order = createOrder({
+  const order = await createOrder({
     tenant_id,
     customer_id: customer.id,
     items,
@@ -26,7 +30,7 @@ router.post("/orders/from-site", async (req: Request, res: Response) => {
     address,
   })
 
-  return res.status(201).json(order)
+  return res.status(201).json({ success: true, order_id: order.id })
 })
 
 export default router
