@@ -7,6 +7,18 @@ import {
   toggleActive,
   updateStock,
 } from "./product.service"
+import {
+  createVariation,
+  updateVariation,
+  deleteVariation,
+  getVariations,
+} from "./product.variation.service"
+import {
+  createAddon,
+  updateAddon,
+  deleteAddon,
+  getAddons,
+} from "./product.addon.service"
 import { authMiddleware } from "../../middlewares/auth.middleware"
 
 const router = Router()
@@ -140,6 +152,136 @@ router.patch("/products/:id/stock", authMiddleware, async (req: Request, res: Re
     return res.json(product)
   } catch (err: any) {
     return res.status(400).json({ error: err.message })
+  }
+})
+
+router.post("/products/:id/variations", authMiddleware, async (req: Request, res: Response) => {
+  const { tenant_id, name, price, stock } = req.body
+  const { id } = req.params
+
+  if (!tenant_id || !name || price === undefined) {
+    return res.status(400).json({ error: "Missing tenant_id, name or price" })
+  }
+
+  if (req.user!.tenant_id !== tenant_id) {
+    return res.status(403).json({ error: "Forbidden" })
+  }
+
+  const product = await getProductById(id, tenant_id)
+  if (!product) {
+    return res.status(404).json({ error: "Product not found" })
+  }
+
+  const variation = await createVariation(id, name, price, stock ?? 0)
+  return res.status(201).json(variation)
+})
+
+router.get("/products/:id/variations", authMiddleware, async (req: Request, res: Response) => {
+  const { tenant_id } = req.query
+  const { id } = req.params
+
+  if (!tenant_id || typeof tenant_id !== "string") {
+    return res.status(400).json({ error: "Missing tenant_id" })
+  }
+
+  if (req.user!.tenant_id !== tenant_id) {
+    return res.status(403).json({ error: "Forbidden" })
+  }
+
+  const product = await getProductById(id, tenant_id)
+  if (!product) {
+    return res.status(404).json({ error: "Product not found" })
+  }
+
+  const variations = await getVariations(id)
+  return res.json(variations)
+})
+
+router.patch("/variations/:id", authMiddleware, async (req: Request, res: Response) => {
+  const { id } = req.params
+  const { name, price, stock } = req.body
+
+  const variation = await updateVariation(id, { name, price, stock })
+  if (!variation) {
+    return res.status(404).json({ error: "Variation not found" })
+  }
+
+  return res.json(variation)
+})
+
+router.delete("/variations/:id", authMiddleware, async (req: Request, res: Response) => {
+  const { id } = req.params
+
+  try {
+    await deleteVariation(id)
+    return res.json({ success: true })
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message })
+  }
+})
+
+router.post("/products/:id/addons", authMiddleware, async (req: Request, res: Response) => {
+  const { tenant_id, name, price } = req.body
+  const { id } = req.params
+
+  if (!tenant_id || !name || price === undefined) {
+    return res.status(400).json({ error: "Missing tenant_id, name or price" })
+  }
+
+  if (req.user!.tenant_id !== tenant_id) {
+    return res.status(403).json({ error: "Forbidden" })
+  }
+
+  const product = await getProductById(id, tenant_id)
+  if (!product) {
+    return res.status(404).json({ error: "Product not found" })
+  }
+
+  const addon = await createAddon(id, name, price)
+  return res.status(201).json(addon)
+})
+
+router.get("/products/:id/addons", authMiddleware, async (req: Request, res: Response) => {
+  const { tenant_id } = req.query
+  const { id } = req.params
+
+  if (!tenant_id || typeof tenant_id !== "string") {
+    return res.status(400).json({ error: "Missing tenant_id" })
+  }
+
+  if (req.user!.tenant_id !== tenant_id) {
+    return res.status(403).json({ error: "Forbidden" })
+  }
+
+  const product = await getProductById(id, tenant_id)
+  if (!product) {
+    return res.status(404).json({ error: "Product not found" })
+  }
+
+  const addons = await getAddons(id)
+  return res.json(addons)
+})
+
+router.patch("/addons/:id", authMiddleware, async (req: Request, res: Response) => {
+  const { id } = req.params
+  const { name, price } = req.body
+
+  const addon = await updateAddon(id, { name, price })
+  if (!addon) {
+    return res.status(404).json({ error: "Addon not found" })
+  }
+
+  return res.json(addon)
+})
+
+router.delete("/addons/:id", authMiddleware, async (req: Request, res: Response) => {
+  const { id } = req.params
+
+  try {
+    await deleteAddon(id)
+    return res.json({ success: true })
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message })
   }
 })
 
