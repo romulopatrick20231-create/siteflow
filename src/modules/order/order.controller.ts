@@ -1,5 +1,5 @@
 import { Router, Request, Response } from "express"
-import { findByPhone, createCustomer, updateName, findById as findCustomerById } from "../customer/customer.service"
+import { findByPhone, createCustomer, updateName, updateAddress, findById as findCustomerById } from "../customer/customer.service"
 import { createOrder, getOrdersByTenant, getById, updateStatus, PaymentMethod, OrderStatus } from "./order.service"
 import { sendMessage } from "../whatsapp/sender.service"
 import { Tenant } from "../tenant/tenant.types"
@@ -66,7 +66,7 @@ router.get("/orders/:id", authMiddleware, async (req: Request, res: Response) =>
   return res.json({
     ...order,
     customer: customer
-      ? { id: customer.id, name: customer.name, phone: customer.phone }
+      ? { id: customer.id, name: customer.name, phone: customer.phone, address: customer.address }
       : null,
   })
 })
@@ -106,6 +106,11 @@ router.post("/orders/from-site", async (req: Request, res: Response) => {
   } else if (!customer.name && customerData.name) {
     await updateName(customer.id, customerData.name)
     customer.name = customerData.name
+  }
+
+  if (address) {
+    await updateAddress(customer.id, address)
+    customer.address = address
   }
 
   const order = await createOrder({
