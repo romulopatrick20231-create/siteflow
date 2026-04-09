@@ -5,16 +5,12 @@ import {
   updateName,
   updateLastInteraction,
 } from "../customer/customer.service"
+import { analyzeMessage } from "../ai/ai.service"
 
 interface IncomingMessage {
   tenant: Tenant
   phone: string
   message: string
-}
-
-function looksLikeName(text: string): boolean {
-  const trimmed = text.trim()
-  return /^[a-zA-ZÀ-ú\s]{2,40}$/.test(trimmed) && trimmed.split(" ").length <= 5
 }
 
 export async function handleIncomingMessage({
@@ -23,25 +19,27 @@ export async function handleIncomingMessage({
   message,
 }: IncomingMessage): Promise<string> {
   const config = tenant.agent_config
-  let customer = findByPhone(tenant.id, phone)
+  let customer = await findByPhone(tenant.id, phone)
+  const isNew = !customer
 
   if (!customer) {
-    customer = createCustomer(tenant.id, phone)
+    customer = await createCustomer(tenant.id, phone)
   } else {
-    updateLastInteraction(customer.id)
+    await updateLastInteraction(customer.id)
+  }
+
+  const analysis = await analyzeMessage(message)
+
+  if (analysis.intent === "name" && analysis.name) {
+    await updateName(customer.id, analysis.name)
+    return `Perfeito, ${analysis.name}! 👋\n\n${config.cta}\n${tenant.site_url}`
   }
 
   if (!customer.name && config.ask_name) {
-    if (looksLikeName(message)) {
-      const name = message.trim()
-      updateName(customer.id, name)
-      return `Perfeito, ${name}! 👋\n\n${config.cta}\n${tenant.site_url}`
-    }
-
     return `${config.greeting}\nSou o atendente virtual 👋\n\nPra começar, me diga seu nome.`
   }
 
-  if (!customer.name) {
+  if (isNew || !customer.name) {
     return `${config.greeting}\nSou o atendente virtual 👋\n\n${config.cta}\n${tenant.site_url}`
   }
 
