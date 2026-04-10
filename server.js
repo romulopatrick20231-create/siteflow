@@ -75,28 +75,29 @@ const allowedOrigins = env.CORS_ORIGIN === "*"
   ? "*"
   : env.CORS_ORIGIN.split(",").map(s => s.trim()).filter(Boolean);
 
-app.use(cors({
+const corsOptions = {
   origin: (origin, callback) => {
+    // no origin = same-origin or server-to-server — always allow
     if (!origin) return callback(null, true);
-
-    if (allowedOrigins === "*") return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
+    // wildcard: reflect the actual origin so credentials work
+    if (allowedOrigins === "*") return callback(null, origin);
+    if (allowedOrigins.includes(origin)) return callback(null, origin);
     return callback(new Error("Not allowed by CORS"));
   },
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "stripe-signature"],
+  allowedHeaders: ["Content-Type", "Authorization", "stripe-signature", "x-requested-with"],
   credentials: true,
+  optionsSuccessStatus: 204,
   maxAge: 86400,
-}));
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions)); // explicit preflight for all routes
 
 // ── Socket.io ─────────────────────────────────────────────────────────────────
 const io = new SocketServer(httpServer, {
   cors: {
-    origin:      allowedOrigins === "*" ? "*" : allowedOrigins,
+    origin:      allowedOrigins === "*" ? true : allowedOrigins,
     methods:     ["GET", "POST"],
     credentials: true,
   },
