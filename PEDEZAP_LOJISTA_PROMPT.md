@@ -1,297 +1,433 @@
-# Lovable Prompt — PedeZap Painel do Lojista
+# PedeZap — Painel do Parceiro (Lovable Prompt)
 
 ```
-Crie um painel completo para o lojista (dono de restaurante/delivery) chamado "PedeZap — Painel do Parceiro". É o painel que o dono do estabelecimento usa no dia a dia para gerenciar seu delivery. Inspiração visual: iFood Parceiros + Shopify Admin, com visual mais quente e energético. Stack: React + TypeScript + Tailwind CSS + shadcn/ui + TanStack Query + Socket.io client. Dark mode padrão com toggle. Fonte Inter.
+Crie o painel do lojista mais completo e bonito já feito para delivery no Brasil. Chama-se "PedeZap — Painel do Parceiro". É o coração da operação de restaurantes, pizzarias, hamburgerias, açaíterias e sorveterias: gerencia pedidos em tempo real como o iFood Parceiros, edita o cardápio como o Shopify, personaliza o site como um construtor visual e analisa o negócio com dados em tempo real.
+
+Inspiração OBRIGATÓRIA de design e UX:
+- iFood Parceiros: alerta de pedido full-screen, kanban operacional, timer de urgência, impressão de comanda
+- Shopify Admin: catálogo visual em grid, edição inline de preços, bulk edit, theme editor com preview ao vivo
+- Linear: dark mode refinado, tipografia perfeita, micro-animações
+- Stripe Dashboard: métricas claras, gráficos elegantes
+
+Stack: React + TypeScript + Tailwind CSS + shadcn/ui + Framer Motion + TanStack Query + Socket.io client + Recharts.
+Dark mode obrigatório com toggle light. Fonte Inter. Radius 8px.
+VITE_API_URL como base. Authorization: Bearer {token} em todas as chamadas.
 
 ---
 
-## AUTH
-- Tela de login: e-mail + senha
+## 🔐 AUTH
+- Tela de login premium: logo PedeZap centralizado em laranja vibrante, e-mail + senha, botão com loading
 - POST {VITE_API_URL}/auth/login → { token, store }
-- JWT em localStorage com tenant_id e store_id no payload
-- Todas as requisições: Authorization: Bearer {token}
-- Ao logar: redireciona para /dashboard
+- JWT em localStorage. Redirect se já logado. Sessão 7 dias com renovação silenciosa
 
 ---
 
-## ALERTA DE PEDIDO (GLOBAL — MÁXIMA PRIORIDADE)
-- Socket.io conectado em tempo real: io(VITE_API_URL, { auth: { token } })
-- Evento "new_order": dispara IMEDIATAMENTE:
-  1. Som de notificação (beep repetido 3x — AudioContext Web API, frequência 880hz, duração 200ms, intervalo 300ms)
-  2. Toast gigante fixo no topo: "🛵 NOVO PEDIDO — [nome do cliente] — R$ [valor]" (fundo laranja vibrante, texto branco grande)
-  3. Badge contador vermelho no ícone de Pedidos na sidebar
-  4. Título da aba: "🛵 (N) Novo pedido! — PedeZap"
-  5. Se janela minimizada: Notification API do browser (pede permissão no primeiro acesso)
-- Evento "order_status_changed": atualiza lista sem reload
-- Notificação persiste até lojista clicar "Ver pedido" ou fechar
+## 🔔 ALERTA DE NOVO PEDIDO — MODO IFOOD (PRIORIDADE MÁXIMA)
+
+Quando Socket.io emitir "new_order":
+
+1. TELA DE TAKEOVER TOTAL (igual iFood Parceiros):
+   - Overlay fullscreen com blur
+   - Card central animado (spring): fundo laranja #f97316, borda pulsante branca
+   - Conteúdo:
+     • 🛵 ícone gigante animado (bounce)
+     • "NOVO PEDIDO!" — 36px bold white
+     • Nome do cliente — 24px
+     • Lista de itens com quantidades e variações
+     • Observação do cliente — caixa amarela destacada
+     • Endereço (ENTREGA) ou "🏪 Retirada no local"
+     • Forma de pagamento + troco se dinheiro
+     • **Valor total — 32px bold**
+   - Input: "Tempo estimado (min)" — default 30 — obrigatório para aceitar
+   - Dois botões massivos: "✅ ACEITAR (30 min)" e "❌ RECUSAR"
+   - Timer regressivo 90s: barra de progresso laranja → vermelha ao esgotar
+   - Se expirar sem ação: re-toca som + card pisca
+
+2. SOM DE ALERTA:
+   - AudioContext: melodia animada 4 notas (392→523→659→784hz), 120ms cada, repetida a cada 3s
+   - Volume persistido em localStorage
+   - Botão mute global no header
+
+3. NOTIFICAÇÃO DO BROWSER:
+   - Pede permissão no primeiro login
+   - Notificação mesmo com aba minimizada: "🛵 Novo pedido de {cliente} — R$ {valor}"
+
+4. BADGE + TÍTULO:
+   - Sidebar: badge vermelho pulsante animado (pulse ring)
+   - Tab: "🛵 (N) Novo pedido! — PedeZap"
+
+5. RECUSAR: modal → motivo (select: "Estabelecimento lotado" / "Produto indisponível" / "Fora da área") → WhatsApp automático de desculpas ao cliente
 
 ---
 
-## LAYOUT
-- Sidebar fixa colapsável à esquerda
-- Header: nome do estabelecimento + tipo (Pizzaria/Hamburgueria/Açaíteria/Sorveteria) + badge status (Aberto/Fechado) com toggle + notificações
-- Toggle Aberto/Fechado: PATCH {VITE_API_URL}/store/status → { open: true/false }
-- Skeleton loading em todas as páginas
-- Toasts em todas as ações
+## 🗂 LAYOUT
+- Sidebar 240px colapsável (64px com ícones), Framer Motion spring
+- Header 56px: breadcrumb | toggle Aberto/Fechado (switch grande animado) | volume | sino | avatar
+- Toggle Aberto/Fechado → PATCH {VITE_API_URL}/store/status — confirmação "Deseja fechar a loja?" se houver pedidos ativos
+- Skeleton shimmer em todas páginas
+- Toasts bottom-right com ícone e duração
+- Transições de rota: fade 150ms
 
 ---
 
-## SIDEBAR
+## 📌 SIDEBAR
 ```
-Dashboard
-Pedidos          ← badge pedidos pendentes
-Cardápio
-  └─ Produtos
-  └─ Categorias
-  └─ Importar Cardápio (CSV)
-Clientes (CRM)
-Financeiro
-Minha Loja
-  └─ Aparência
-  └─ Configurações
+🏠  Dashboard
+📋  Pedidos          ← badge contador vivo
+🍕  Cardápio
+    └─ Produtos
+    └─ Categorias
+    └─ Importar CSV
+💬  Clientes (CRM)
+💰  Financeiro
+🎨  Minha Loja
+    └─ Editor do Site
+    └─ Configurações
 ```
 
 ---
 
-## PÁGINA: DASHBOARD
-Topo — cards em tempo real:
-- Pedidos Hoje | Pedidos Pendentes (vermelho se >0) | Faturamento Hoje (R$) | Ticket Médio | Tempo médio de entrega
+## 📊 DASHBOARD — CENTRAL DE OPERAÇÕES
 
-Centro — painel operacional em 2 colunas:
-Coluna esquerda — "Pedidos ao Vivo":
-Cards de pedidos ativos ordenados por tempo de espera (mais antigo no topo):
-- Nome do cliente + itens resumidos + valor + contador ao vivo (mm:ss aguardando)
-- Cor do card muda com o tempo: verde (<5min) → amarelo (5-15min) → vermelho (>15min)
-- Botões de ação rápida:
-  • "✅ Aceitar" → status: confirmado
-  • "🍳 Em preparo" → status: preparing + input tempo estimado (ex: 25 min) → envia WhatsApp ao cliente
-  • "🛵 Saiu pra entrega" → modal: nome do motoboy (input) → status: delivering → WhatsApp "Seu pedido saiu pra entrega! 🛵"
-  • "✔️ Entregue" → status: delivered → WhatsApp "Pedido entregue! Obrigado 😊" + som de conclusão
-  • "❌ Cancelar" → modal: motivo → WhatsApp de cancelamento
+**Saudação dinâmica:** "Boa noite, {nome do restaurante} 🍕" + status + data
 
-Coluna direita:
-- Gráfico de barras: faturamento últimos 7 dias (recharts)
-- Top 5 mais pedidos
-- Gráfico de pizza: pedidos por categoria (pizza, hamburguer, bebidas, etc.)
-- Status da cozinha: campo livre "Aviso para o site" (ex: "Aceitando pedidos normalmente" ou "Lotados — tempo extra de 30min") → salva em tempo real
+**Row 1 — KPIs animados (5 cards, CountUp):**
+| Card | Destaque |
+|------|---------|
+| Pedidos Hoje | vs ontem (badge % verde/vermelho) |
+| Pendentes | badge vermelho pulsante se >0 |
+| Faturamento Hoje | R$, grande |
+| Ticket Médio | últimos 30 dias |
+| Tempo Médio de Entrega | "28 min" — verde se <30, vermelho se >45 |
+
+**Row 2 — Operacional (2 colunas 65/35):**
+
+**Esquerda — Mapa de Pedidos ao Vivo:**
+Cards de pedidos ativos ordenados por urgência (mais antigo no topo):
+- Borda esquerda colorida: verde (<5min) → amarelo → laranja → vermelho pulsante (>20min)
+- Card: avatar do cliente, nome, resumo dos itens, **observação do cliente** (caixa amarela se existir), valor total, timer mm:ss
+- Botões de progressão rápida:
+  • **Aceitar** → confirmado + input tempo (ex: 25 min) + WhatsApp "✅ Pedido confirmado! Pronto em aprox. 25 min 🍕"
+  • **Em preparo** → envia WhatsApp "🍳 Seu pedido entrou na cozinha!"
+  • **Saiu pra entrega** → modal: nome do motoboy + placa (opcionais) → WhatsApp "🛵 Seu pedido saiu pra entrega com {motoboy}!"
+  • **Entregue** → confete animado + som de sino + WhatsApp "✅ Chegou! Bom apetite 😊 Que tal avaliar? ⭐"
+- Botão "🖨️ Imprimir comanda" em cada card → abre janela de impressão formatada
+
+**Direita — Analytics Rápido:**
+- Gráfico de barras: faturamento 7 dias (cor laranja)
+- Top 5 itens mais pedidos hoje (lista com ranking e barra proporcional)
+- "Aviso para clientes" — textarea ao vivo: o que o lojista digitar aqui aparece como banner no site (ex: "Tempo extra: 45 min") — PUT {VITE_API_URL}/store/notice em tempo real
 
 ---
 
-## PÁGINA: PEDIDOS — VISÃO KANBAN
-Colunas: [Novos 🔔] → [Aceitos ✅] → [Em Preparo 🍳] → [Saiu pra Entrega 🛵] → [Entregues ✅] | [Cancelados ❌]
+## 📋 PEDIDOS — KANBAN OPERACIONAL
 
-Card de pedido no Kanban:
-- #ID + nome do cliente + tempo aguardando (contador ao vivo)
-- Resumo dos itens (máx 3 + "e mais N")
-- Valor total + forma de pagamento
-- Badge: Retirada / Entrega
-- Botão de ação principal (próximo status)
+### Header
+- Toggle: **Kanban** | **Lista**
+- Filtros: período | busca por cliente ou ID | forma de pagamento
+- Botão "🖨️ Imprimir todas comandas do dia"
 
-Toggle: Kanban | Lista (tabela com filtros)
+### Visão Kanban (padrão)
+5 colunas com scroll horizontal em mobile:
+```
+[🔔 Novos]  [✅ Aceitos]  [🍳 Em Preparo]  [🛵 Saindo]  [✔️ Entregues]
+```
+Coluna "Novos": header com fundo laranja suave pulsante se tiver pedidos
 
-Drawer de detalhes ao clicar:
-- Dados do cliente: nome, telefone, endereço completo + link Google Maps
-- Itens detalhados: produto, variação, adicionais, observação do cliente, qty, preço
-- Valor total + taxa de entrega + total final
-- Forma de pagamento + troco (se dinheiro)
-- Campo "Motoboy" (input)
-- Campo "Tempo estimado" (input minutos) → aparece no WhatsApp enviado
+Cada card:
+- **#ID** (mono) + **timer ao vivo** (cor muda com urgência)
+- Avatar inicial + nome do cliente
+- Ícone 🚗 Entrega ou 🏪 Retirada
+- Itens: max 2 linhas + "e mais N..."
+- Valor total em destaque
+- **Se obs do cliente:** ícone ⚠️ amarelo no card
+- Botão de ação principal (próximo status) + "⋯" menu (Detalhes | Imprimir | Cancelar)
+- Drag & drop entre colunas → PATCH status
+
+### Visão Lista
+Tabela: # | Cliente | Itens | Valor | Tipo | Pagamento | Status badge | Tempo | Ações
+
+### Drawer de Detalhes (480px)
+Aba **Pedido:**
+- Dados do cliente: nome, telefone (link WhatsApp), endereço + 📍 link Google Maps
+- **Itens detalhados:** foto miniatura, nome, variação escolhida, grupos de adicionais, qty × preço, subtotal
+- **Caixa amarela:** "⚠️ Obs: {observação}" — sempre visível se existir
+- Forma de pagamento + troco
+- Taxa de entrega | Total final
+- "Motoboy": input livre (aparece no WhatsApp)
+- "Tempo estimado": input minutos
 - Timeline de status com timestamps
-- Observações do cliente (campo do pedido)
-- Botão "Enviar mensagem WhatsApp" → modal com mensagem editável
+- Botão "🖨️ Imprimir comanda"
+
+Aba **WhatsApp:**
 - Histórico de mensagens enviadas
+- Campo livre + botão enviar
+- Templates rápidos (chips): "Confirmado 25min" | "Saindo agora" | "Entregue!" | "Problema..."
 
 ---
 
-## PÁGINA: PRODUTOS (CARDÁPIO)
-Tabela/grid com: Foto | Nome | Categoria | Preço | Disponível (toggle) | Ações
+## 🍕 CARDÁPIO — SHOPIFY MODE
 
-Toggle "Disponível" inline: produto some do cardápio online imediatamente (PATCH {VITE_API_URL}/products/:id → { available: false })
+### Header
+"Cardápio" + contador + "Adicionar produto" (primário) + "Importar CSV" + "Exportar"
 
-Filtro por categoria + busca + filtro disponibilidade
+### Ferramentas
+- Busca em tempo real (debounce 300ms)
+- Filtros: Categoria (multi) | Disponível/Indisponível | Ordenar (Nome/Preço/Mais vendido)
+- Toggle: **Grid** | **Lista**
 
-MODAL EDITAR/CRIAR PRODUTO (sheet lateral):
-Aba 1 — Informações:
-- Nome (input) — ex: "Pizza Margherita"
-- Descrição (textarea) — ex: "Molho de tomate, muçarela, manjericão fresco"
-- Categoria (select)
-- Preço base (input moeda)
-- Preço promocional (opcional — mostra riscado no site)
-- Serve quantas pessoas (select: 1 / 2 / 3-4 / família)
-- Tags (chips): #vegano #sem-gluten #picante #destaque
+### Visão Grid (padrão — IGUAL SHOPIFY)
+Grid responsivo 2→3→4→5 colunas.
+Card de produto:
+- Foto aspect-ratio 1:1, object-cover, border-radius 8px
+- Hover: overlay escuro + botão "✏️ Editar" centralizado (Framer Motion)
+- Badge no canto: "Esgotado" (vermelho) | "Destaque ⭐" (dourado) | "Novo" (azul)
+- Nome (2 linhas max, truncado)
+- Preço: se promoção → **R$25,90** ~~R$32,00~~
+- **Quick Edit: duplo clique no preço** → campo input inline → Enter salva, Esc cancela
+- Toggle disponível/indisponível inline (aparece no hover)
 
-Aba 2 — Foto:
-- Upload drag & drop ou URL
-- Preview + recorte (crop básico)
-- Botão "Buscar foto" → GET {VITE_API_URL}/products/suggest-image?name={nome}
+### Visão Lista
+Tabela densa: checkbox | foto 48px | nome | categoria | preço (clique para editar inline) | disponível (toggle) | ações
 
-Aba 3 — Tamanhos/Variações:
-- Lista dinâmica: tamanho + preço próprio
-- Ex Pizzaria: "Brotinho R$25 | Pequena R$35 | Média R$45 | Grande R$55 | Família R$75"
-- Ex Açaíteria: "300ml R$12 | 500ml R$18 | 700ml R$25 | 1L R$35"
-- Ex Hamburgueria: "Simples R$22 | Duplo R$32 | Triplo R$42"
-- Cada variação tem estoque próprio (opcional)
+### Bulk Edit
+- Selecionar vários → barra bottom: "X selecionados" → Alterar preço (% ou R$) | Alterar categoria | Ativar | Desativar | Excluir
+- Modal bulk preço: "Aumentar 10%" | "Definir como R$ X" → preview do impacto
 
-Aba 4 — Adicionais/Complementos:
-- Grupos de adicionais com seleção obrigatória ou opcional
-- Ex Pizzaria: Grupo "Borda" (obrigatório, escolha 1): Sem borda / Cheddar (+R$6) / Catupiry (+R$6)
-- Ex Pizzaria: Grupo "Extras" (opcional, múltipla escolha): Muçarela extra (+R$4) / Ovo (+R$3)
-- Ex Açaíteria: Grupo "Frutas" (múltipla, até 3): Banana / Morango / Kiwi / Manga
-- Ex Açaíteria: Grupo "Coberturas" (múltipla): Leite em pó / Granola / Paçoca
-- Botão "+ Adicionar grupo"
+### Modal de Produto (Sheet 760px — Shopify-like)
+Slide-in da direita. Header: nome + badge "Disponível ●".
 
-Aba 5 — Disponibilidade:
-- Toggle "Disponível no cardápio"
-- Disponibilidade por horário: grade de dias/horas (ex: só disponível seg-sex 11h-14h)
+**Layout 2 colunas:**
+Esquerda (58%):
+- **Nome** — input grande
+- **Descrição** — textarea (inclui ingredientes, alergênicos, etc.)
+- **Categoria** — select com busca
+- **Tags** — chips (ex: #vegano, #sem-gluten, #picante, #destaque, #novo)
+- **Serve quantas pessoas** (select: 1 / 2 / 3-4 / Família)
+- **Preços:**
+  - Preço de venda (grande)
+  - Preço riscado/original (se promoção)
+  - Toggle "Tem tamanhos/variações" →
+- **Seção Tamanhos** (se toggle ativo) — lista dinâmica:
+  - Cada linha: Nome do tamanho + Preço próprio + Estoque próprio
+  - Pizzaria: "Brotinho R$25 / Pequena R$35 / Média R$48 / Grande R$58 / Família R$78"
+  - Açaíteria: "300ml R$12 / 500ml R$18 / 700ml R$26 / 1L R$36"
+  - Hamburgueria: "Simples R$22 / Duplo R$30 / Triplo R$40"
+  - Sorveteria: "1 bola R$8 / 2 bolas R$14 / 3 bolas R$20 / Pote 500ml R$22"
+  - Drag handle para reordenar
+- **Grupos de Adicionais** (IFOOD-like):
+  - Cada grupo: nome do grupo + min/max seleções + lista de opções (nome + preço)
+  - Pizzaria:
+    • "Borda" (obrigatório, 1): Sem borda | Cheddar +R$6 | Catupiry +R$6 | Mussarela +R$5
+    • "Extras" (opcional, até 3): Ovo +R$3 | Mussarela extra +R$4 | Azeitona +R$2
+  - Açaíteria:
+    • "Frutas" (opcional, até 4): Banana | Morango | Kiwi | Manga | Uva
+    • "Coberturas" (opcional, até 3): Leite Ninho +R$0 | Granola | Paçoca | Bis +R$2
+    • "Complementos" (opcional): Leite condensado +R$2 | Nutella +R$4
+  - Hamburgueria:
+    • "Ponto" (obrigatório, 1): Ao ponto | Bem passado | Mal passado
+    • "Extras" (opcional): Bacon +R$4 | Ovo +R$2 | Cheddar +R$3
+  - Botão "+ Adicionar grupo"
+
+Direita (42%):
+- **Upload de foto principal:** drag & drop grande, preview ao vivo, aspect 1:1
+  - File picker: jpg/png/webp até 10MB
+  - Botão "🤖 Sugerir foto" → GET {VITE_API_URL}/products/suggest-image?name={nome}
+- **Galeria extra:** até 4 fotos adicionais (grid 2×2)
+- **Status:**
+  - Toggle "Disponível no cardápio"
+  - "Em destaque" (aparece no topo do cardápio no site)
+- **Disponibilidade por horário:**
+  - Grade: dias da semana × horários de disponibilidade
+  - Ex: "Só disponível Sex-Dom" (promoção de fim de semana)
+- **Preview do card:** miniatura mostrando como ficará no site
+
+Footer: "Cancelar" + "Salvar" (com loading, optimistic update)
 
 ---
 
-## PÁGINA: CATEGORIAS
-Grid de cards editáveis com drag & drop para reordenar
+## 🗂 CATEGORIAS
 
-Categorias padrão por tipo de estabelecimento (detectado pelo nicho):
-🍕 Pizzaria: Pizzas Salgadas | Pizzas Doces | Bordas Recheadas | Bebidas | Sobremesas | Combos
-🍔 Hamburgueria: Hambúrgueres | Smash Burgers | Hot Dogs | Acompanhamentos | Bebidas | Sobremesas | Combos
-🍧 Açaíteria: Açaí | Sorvetes | Vitaminas | Sucos | Frutas | Coberturas Avulsas | Combos
-🍦 Sorveteria: Sorvetes | Picolés | Sundaes | Milkshakes | Casquinhas | Combos
+Grid drag & drop de cards. Cada card: emoji grande + nome + "X produtos" + toggle ativo + editar/excluir.
+Reordenar = reordena no site automaticamente.
 
-Ações: Editar | Reordenar (drag & drop) | Ativar/Desativar | Excluir
-Formulário: nome + emoji/ícone (emoji picker) + slug
+**Padrão por nicho (detectado pelo tipo da loja):**
+🍕 **Pizzaria:** Pizzas Salgadas | Pizzas Doces | Bordas Especiais | Bebidas | Sobremesas | Combos
+🍔 **Hamburgueria:** Hambúrgueres | Smash Burgers | Hot Dogs | Acompanhamentos | Bebidas | Sobremesas | Combos
+🍧 **Açaíteria:** Açaí | Sorvetes na Taça | Vitaminas | Sucos | Coberturas Avulsas | Combos
+🍦 **Sorveteria:** Sorvetes | Picolés | Sundaes | Milkshakes | Casquinhas | Combos
+🥗 **Outros:** configuração livre
 
 ---
 
-## PÁGINA: IMPORTAR CARDÁPIO (CSV)
-Passo 1 — Upload:
-- Drag & drop de CSV
-- Botão "Baixar modelo" → CSV com: nome, descricao, preco, categoria, tamanho, disponivel, foto_url
-- Preview primeiras 5 linhas
+## 📥 IMPORTAR CARDÁPIO CSV
 
-Passo 2 — Mapeamento de colunas:
-- Detecção automática + tabela editável de mapeamento
-- Ex: "PRODUTO" → "nome" | "VALOR" → "preco" | "GRUPO" → "categoria"
+Wizard 4 passos com stepper visual:
 
-Passo 3 — Categorização automática com IA:
-- POST {VITE_API_URL}/products/ai-categorize (envia nomes)
-- Categorização inteligente por nicho do estabelecimento:
-  Pizzaria:
-  • "Margherita", "Calabresa", "Frango" → Pizzas Salgadas
-  • "Chocolate", "Romeu e Julieta" → Pizzas Doces
-  • "Coca-Cola", "Suco", "Água" → Bebidas
-  Hamburgueria:
-  • "X-Burguer", "Smash", "Veggie" → Hambúrgueres
-  • "Batata frita", "Onion rings" → Acompanhamentos
-  • "Sorvete", "Brownie" → Sobremesas
-  Açaíteria:
-  • "Açaí 300ml", "Açaí com banana" → Açaí
-  • "Vitamina de morango" → Vitaminas
-  • "Granola", "Leite em pó" → Coberturas Avulsas
-  Sorveteria:
-  • "Chocolate", "Creme", "Morango" → Sorvetes
-  • "Picolé de uva" → Picolés
-  • "Milkshake" → Milkshakes
-- Tabela de resultado editável (select por linha) com % de confiança
+**Passo 1 — Upload:**
+- Drag & drop animado (.csv ou .xlsx)
+- Preview 10 linhas
+- Botão "Baixar modelo"
 
-Passo 4 — Importar:
-- Resumo: X novos | Y atualizados | Z ignorados
-- Progress bar por produto
-- Relatório: ✅ importados | ❌ erros com motivo
+**Passo 2 — Mapeamento:**
+- Detecção automática de colunas (fuzzy match)
+- Tabela: coluna do arquivo → campo do sistema (select)
+- Validação ao vivo
 
-Endpoints:
-- POST {VITE_API_URL}/products/import
+**Passo 3 — IA Categoriza:**
 - POST {VITE_API_URL}/products/ai-categorize
-- GET {VITE_API_URL}/products/export
+- Categorização por nicho:
+  🍕 Pizzaria: "Margherita" → Pizzas Salgadas | "Prestígio" → Pizzas Doces | "Coca-Cola" → Bebidas | "Borda Cheddar" → Bordas
+  🍔 Hamburgueria: "X-Burgão" → Hambúrgueres | "Batata rústica" → Acompanhamentos | "Brownie" → Sobremesas
+  🍧 Açaíteria: "Açaí com granola 500ml" → Açaí | "Vitamina de morango" → Vitaminas | "Granola extra" → Coberturas Avulsas
+  🍦 Sorveteria: "Sorvete de chocolate" → Sorvetes | "Picolé de uva" → Picolés | "Milkshake baunilha" → Milkshakes
+- Tabela editável: produto | categoria sugerida (select) | confiança (barra colorida)
+- "Aceitar todas" ou editar linha por linha
+
+**Passo 4 — Importar:**
+- Resumo: X novos | Y atualizados | Z ignorados
+- Progress bar por lote + log ao vivo
+- Baixar relatório de erros (se houver)
 
 ---
 
-## PÁGINA: CLIENTES (CRM)
-Tabela: Nome | Telefone | Bairro | Último pedido | Nº pedidos | Total gasto | Tag | Ações
+## 💬 CLIENTES — CRM
 
-Tags automáticas: VIP (LTV > R$300) | Fiel (>8 pedidos) | Novo (<2 pedidos) | Inativo (>21 dias)
+**Tabela:** Avatar | Nome | Telefone | Bairro | Último pedido | Nº pedidos | LTV | Tag | Ações
 
-Drawer do cliente:
-- Dados + mapa do endereço (iframe Google Maps)
-- Histórico de pedidos (timeline com itens)
-- Pedidos favoritos (top 3 mais pedidos)
-- LTV (lifetime value)
-- Notas internas (textarea, salva automático)
-- Botão "Enviar promoção WhatsApp" → modal com mensagem editável + preview
-- Botão "Oferecer cupom" → gera código de desconto
+**Tags automáticas:**
+👑 VIP (LTV > R$300) | 🔁 Fiel (>8 pedidos) | 🆕 Novo (<2 pedidos) | 😴 Inativo (>21 dias sem pedir)
 
-Endpoints:
-- GET {VITE_API_URL}/customers
-- GET {VITE_API_URL}/customers/:id/history
+**Drawer cliente (560px) com abas:**
+- **Visão Geral:** LTV grande, total pedidos, ticket médio, 1º pedido
+- **Pedidos:** timeline vertical — cada pedido com itens, valor, status, data
+- **Favoritos:** top 3 mais pedidos com foto e frequência
+- **WhatsApp:** histórico de mensagens + campo enviar nova mensagem + templates
+- **Notas:** textarea auto-save
 
 ---
 
-## PÁGINA: FINANCEIRO
-Cards: Faturamento do mês | Faturamento da semana | Pedidos pagos | Ticket médio | Taxa de cancelamento (%)
+## 💰 FINANCEIRO
 
-Gráfico de linha: faturamento diário — mês atual vs anterior (recharts)
-Gráfico de barras: faturamento por categoria de produto
+KPIs: MRR projeção | Faturamento do mês | Ticket médio | Taxa de cancelamento
 
-Tabela: Data | Pedido | Cliente | Itens | Valor | Entrega | Total | Pagamento
+Gráfico linha dupla: mês atual (laranja) vs mês anterior (cinza) — recharts
+
+Gráfico pizza: faturamento por categoria
+
+Tabela: # | Data | Cliente | Itens | Subtotal | Entrega | Total | Pagamento
 
 Exportar CSV: GET {VITE_API_URL}/store/revenue/export
 
-Endpoint: GET {VITE_API_URL}/store/revenue
+---
+
+## 🎨 EDITOR DO SITE — SHOPIFY THEME EDITOR
+
+Layout: painel esquerdo 360px fixo + iframe preview ao vivo à direita.
+
+**Topo do preview:**
+- Toggle 📱 Mobile / 🖥️ Desktop
+- Botão "Abrir no navegador"
+
+**Painel esquerdo (acordeão):**
+
+📌 **Identidade:**
+- Nome da loja, tipo (Pizzaria/Hamburgueria/Açaíteria/Sorveteria)
+- Slogan, logo (upload + preview)
+
+🎨 **Cores:**
+- Cor principal, cor de destaque (color pickers com swatches)
+- Preview aplica no iframe imediatamente
+
+🖼 **Banners (5 slots):**
+- Cada slot: preview 16:5 + upload/URL + label
+- Atualiza iframe em tempo real (debounce 500ms)
+
+🃏 **Cards Promocionais (6 slots):**
+- Mesmo padrão
+
+📝 **Textos:**
+- Título, subtítulo, boas-vindas, rodapé
+
+⏰ **Horário exibido no site:**
+- Input texto: "Seg–Sex: 11h–23h | Sáb–Dom: 11h–00h"
+
+📣 **Aviso especial:**
+- Textarea: aparece como banner no site (ex: "🔥 Frete grátis acima de R$40!")
+
+**Ações:**
+- "💾 Salvar rascunho"
+- "🚀 Publicar agora" → progress: Salvando → Renderizando → Publicando → ✅ No ar!
+- URL do site + botão "Abrir" + "Copiar"
+- "Último publicado: há X horas"
 
 ---
 
-## PÁGINA: MINHA LOJA — APARÊNCIA
-Permite editar o site gerado sem quebrar nada.
+## ⚙️ CONFIGURAÇÕES
 
-Seção Identidade:
-- Nome do estabelecimento + tipo (Pizzaria/Hamburgueria/Açaíteria/Sorveteria)
-- Slogan (input)
-- Logo (upload ou URL + preview)
-- Cor principal (color picker)
-- WhatsApp de contato
+**Loja:**
+- WhatsApp, endereço completo, raio de entrega, taxa de entrega (fixo ou grátis acima de R$X), pedido mínimo, tempo estimado
+- Formas: Dinheiro | PIX | Débito | Crédito | Vale-refeição
+- Se Dinheiro: "Aceita troco" toggle + valor máximo de troco
+- Modalidades: Entrega toggle | Retirada toggle
+- Horário: grade 7 dias com abre/fecha + toggle "Fechado hoje"
 
-Seção Banners principais:
-- 5 slots de banner — preview + trocar imagem (upload ou URL)
+**Notificações:**
+- Toggle som | Slider de volume | Botão "Testar som"
+- Toggle notificação browser
+- Toggle e-mail resumo diário
 
-Seção Cards promocionais:
-- 6 slots de promo card — preview + trocar
-
-Seção Textos:
-- Título principal | Subtítulo | Mensagem de boas-vindas | Horário de funcionamento
-
-Botão "Publicar alterações" → POST {VITE_API_URL}/publish
-Progress: Salvando → Renderizando → ✅ Site atualizado!
+**Conta:**
+- Nome, e-mail, trocar senha
+- Plano: badge "Pro ✨" + vencimento + "Gerenciar plano"
 
 ---
 
-## PÁGINA: CONFIGURAÇÕES
-- WhatsApp do negócio
-- Endereço completo (rua, número, bairro, cidade, CEP)
-- Raio de entrega (km)
-- Taxa de entrega (R$ — pode ser grátis acima de X)
-- Pedido mínimo (R$)
-- Tempo estimado de entrega (minutos)
-- Formas de pagamento: checkboxes (Dinheiro, PIX, Débito, Crédito, Vale-refeição)
-- Se "Dinheiro": toggle "Aceita troco" + campo valor máximo de troco
-- Modalidades: Entrega / Retirada (toggles independentes)
-- Horário de funcionamento: grade dias × horários com toggle por dia
-- Notificações: toggle som | toggle browser notification
+## 🎨 DESIGN SYSTEM
+
+**Paleta:**
+- bg-base: #09090b
+- bg-surface: #111113
+- bg-card: #18181b
+- border: #27272a
+- text-primary: #fafafa
+- text-muted: #71717a
+- primary: #f97316 (orange-500)
+- primary-hover: #ea580c
+- primary-glow: rgba(249,115,22,0.15)
+- kanban-new-bg: rgba(249,115,22,0.08) com borda laranja pulsante
+- danger: #ef4444 | warning: #f59e0b | success: #22c55e
+
+**Micro-animações (Framer Motion):**
+- Cards pedido: hover scale(1.01) + sombra laranja suave 150ms
+- Novo pedido: spring bounce entrada + pulse ring na borda
+- Urgência: borda do card pisca quando timer > 20min
+- Sidebar collapse: spring 300/30
+- Modais/sheets: slide-in bottom/right 300ms ease-out
+- CountUp em todos os KPIs
+- Skeleton shimmer
+- Botão: pressão scale(0.97)
+- Confete ao marcar entregue (canvas-confetti)
+
+**Componentes shadcn obrigatórios:**
+Button, Input, Textarea, Select, Badge, Card, Table, Dialog, Sheet, Tabs, Toast, Skeleton, Progress, Switch, Separator, Avatar, DropdownMenu, Command, Calendar, Popover, Accordion, Tooltip, ScrollArea
 
 ---
 
-## DESIGN TOKENS
-- Background: #09090b | Surface: #18181b | Border: #27272a
-- Primary: #f97316 (orange — cor do delivery/food)
-- Accent: #ea580c
-- Success: #22c55e | Warning: #f59e0b | Danger: #ef4444
-- Kanban column new: borda laranja pulsante
-- Radius: 8px | Font: Inter
+## ⚡ REGRAS TÉCNICAS
 
-## REGRAS TÉCNICAS
-- TanStack Query: cache 30s, retry 2x, refetchInterval 15000 para dashboard (mais rápido pq é delivery)
-- Socket.io: reconnectionDelay 1000, reconnectionAttempts infinito
-- Erros 401 → logout + redirect /login
-- Mutations invalidam queries relacionadas
-- Skeleton loading em todas as páginas
-- Sem mock data — tudo vai para VITE_API_URL real
+- TanStack Query: refetchInterval 15s (dashboard) | 10s (pedidos ativos) — delivery é mais urgente
+- Socket.io: reconexão infinita, reconnectionDelay 500ms
+- Optimistic updates: toggle disponível, mudança de status, edição inline de preço
+- Prefetch ao hover nos links da sidebar
+- Erros 401: logout + redirect + toast
+- Erros 5xx: toast com "Tentar novamente"
+- Imagens: lazy + blur placeholder + fallback ícone
+- Impressão: CSS @media print — layout de comanda 80mm (impressora térmica)
+- PWA: manifest.json "PedeZap", display standalone, ícone laranja — "Adicionar à tela inicial"
+- Mobile: sidebar → bottom sheet | kanban → lista vertical com swipe actions
+- Sem mock data — 100% VITE_API_URL real
 - VITE_API_URL sem trailing slash
-- Paginação: 20 itens por página
-- Observação do cliente no pedido: sempre visível em destaque (caixa amarela)
+- Paginação cursor-based, "Carregar mais" (não paginação numérica)
+- Observação do cliente: SEMPRE visível em caixa amarela destacada no card e no drawer
 ```
