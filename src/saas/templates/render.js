@@ -55,11 +55,11 @@ function normalizeNiche(niche) {
 // Edite aqui para trocar banners e promo cards sem tocar no HTML compilado.
 // Tamanhos recomendados: banners 1296×290px | promo cards 340×504px
 export const TEMPLATE_IMAGES = {
-  banner_1: 'https://www.drogariaspacheco.com.br/arquivos/dpa-ativa_hidratei_06-04-26_super-1296x290.png?v=639107567055130000',
-  banner_2: 'https://www.drogariaspacheco.com.br/arquivos/dpa-ativa_mais-beleza_01-04-26_super-1296x290.png?v=639102418083970000',
-  banner_3: 'https://www.drogariaspacheco.com.br/arquivos/dpsp-trade_dpgp_garnier_06-04-26_super-1296x290.png?v=639110923067530000',
-  banner_4: 'https://www.drogariaspacheco.com.br/arquivos/dpsp-trade_colgate-promo%C3%A7%C3%A3o_01-04-26_super-1296x290.png?v=639107512378670000',
-  banner_5: 'https://www.drogariaspacheco.com.br/arquivos/dpsp-trade_ldb_hyalu-b5_06-04-26_super-1296x290.png?v=639107508512470000',
+  banner_1: 'https://lh3.googleusercontent.com/d/1ksEMXvLkqMggqGjz5cZBHyuMFc6QP6t4',
+  banner_2: 'https://lh3.googleusercontent.com/d/198of841kOfyc4mt1All2v0DnZ2Kxdivb',
+  banner_3: 'https://lh3.googleusercontent.com/d/1sxWUlEZL1p29OfCkPL3QctoNChkBnxKw',
+  banner_4: 'https://lh3.googleusercontent.com/d/1eB141IDfGeP0kXJrhqr_EJQf9EdqDqgF',
+  banner_5: 'https://lh3.googleusercontent.com/d/1636DLQanRgG0IvmZMZra_FaEoRWcBi_q',
   promo_card_1: 'https://www.drogariaspacheco.com.br/arquivos/dpa-ativa_mais-beleza_01-04-26_card1-340x504.png?v=639102318742430000',
   promo_card_2: 'https://www.drogariaspacheco.com.br/arquivos/dpa-ativa_ever-vitaminas_01-04-26_card2-340x504.png?v=639102312544800000',
   promo_card_3: 'https://www.drogariaspacheco.com.br/arquivos/dpa-trade_galderma-cetaphil_06-04-26_card4-340x504.png?v=639107572629830000',
