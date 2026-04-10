@@ -30,14 +30,18 @@ function getLogoBase64() {
  * @param {object} site — objeto com business_name, niche, phone, city
  * @returns {{ html: string, css: string, js: string, files: Array }}
  */
+const VERCEL_CONFIG = JSON.stringify({
+  rewrites: [{ source: "/(.*)", destination: "/" }]
+});
+
 export function exportHtml(site) {
   const html = renderTemplate(site);
 
   const files = [
     { name: 'index.html', content: html },
+    { name: 'vercel.json', content: VERCEL_CONFIG },
   ];
 
-  // Inclui a logo como arquivo separado (React a carrega de /assets/)
   const logoB64 = getLogoBase64();
   if (logoB64) {
     files.push({ name: 'assets/farmazap-logo-Q35RW_XK.png', content: logoB64, encoding: 'base64' });
