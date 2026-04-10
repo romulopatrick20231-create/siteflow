@@ -259,12 +259,15 @@ app.use((err, req, res, _next) => {
 });
 
 // ── Start server ──────────────────────────────────────────────────────────────
-const server = httpServer.listen(env.PORT, () => {
+const server = httpServer.listen(env.PORT, async () => {
   logger.info("ForgeSites API started", {
     port: env.PORT,
     env:  env.NODE_ENV,
     pid:  process.pid,
   });
+
+  const { startMessageWorker } = await import("./src/modules/whatsapp/whatsapp.service.js");
+  startMessageWorker();
 });
 
 // ── Graceful shutdown ─────────────────────────────────────────────────────────
