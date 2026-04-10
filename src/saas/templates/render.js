@@ -55,11 +55,11 @@ function normalizeNiche(niche) {
 // Edite aqui para trocar banners e promo cards sem tocar no HTML compilado.
 // Tamanhos recomendados: banners 1296×290px | promo cards 340×504px
 export const TEMPLATE_IMAGES = {
-  banner_1: 'https://lh3.googleusercontent.com/d/1ksEMXvLkqMggqGjz5cZBHyuMFc6QP6t4',
-  banner_2: 'https://lh3.googleusercontent.com/d/198of841kOfyc4mt1All2v0DnZ2Kxdivb',
-  banner_3: 'https://lh3.googleusercontent.com/d/1sxWUlEZL1p29OfCkPL3QctoNChkBnxKw',
-  banner_4: 'https://lh3.googleusercontent.com/d/1eB141IDfGeP0kXJrhqr_EJQf9EdqDqgF',
-  banner_5: 'https://lh3.googleusercontent.com/d/1636DLQanRgG0IvmZMZra_FaEoRWcBi_q',
+  banner_1: 'https://xkendhhppcuwnuhpvcnh.supabase.co/storage/v1/object/sign/fotosprofront/freepik_a-banner-ad-for-colgate-t_2753915454.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lMmM3ZWJiMC1kYzE1LTRiZjctOTY1Yy03ZjEyZWNiZjg0ZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmb3Rvc3Byb2Zyb250L2ZyZWVwaWtfYS1iYW5uZXItYWQtZm9yLWNvbGdhdGUtdF8yNzUzOTE1NDU0LnBuZyIsImlhdCI6MTc3NTc4NzI4OCwiZXhwIjo0OTI5Mzg3Mjg4fQ.cqjvy7DXYO9aBXU0Bye2nnD-Fr25uZSL23Arv2pVSWg',
+  banner_2: 'https://xkendhhppcuwnuhpvcnh.supabase.co/storage/v1/object/sign/fotosprofront/freepik_a-banner-with-a-red-backg_2753839685.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lMmM3ZWJiMC1kYzE1LTRiZjctOTY1Yy03ZjEyZWNiZjg0ZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmb3Rvc3Byb2Zyb250L2ZyZWVwaWtfYS1iYW5uZXItd2l0aC1hLXJlZC1iYWNrZ18yNzUzODM5Njg1LnBuZyIsImlhdCI6MTc3NTc4NzMwMiwiZXhwIjo0OTI5Mzg3MzAyfQ.v9UXu3IJbF_CcTAmvUI_e0hJLXOYHocCgGBToZNh5Vc',
+  banner_3: 'https://xkendhhppcuwnuhpvcnh.supabase.co/storage/v1/object/sign/fotosprofront/freepik_a-banner-with-a-red-backg_2753889765.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lMmM3ZWJiMC1kYzE1LTRiZjctOTY1Yy03ZjEyZWNiZjg0ZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmb3Rvc3Byb2Zyb250L2ZyZWVwaWtfYS1iYW5uZXItd2l0aC1hLXJlZC1iYWNrZ18yNzUzODg5NzY1LnBuZyIsImlhdCI6MTc3NTc4NzMxNiwiZXhwIjo0OTI5Mzg3MzE2fQ.ZfiwsJUX1KEvli57XInl55wjgl3I9kxbba4HlRamql8',
+  banner_4: 'https://xkendhhppcuwnuhpvcnh.supabase.co/storage/v1/object/sign/fotosprofront/freepik_a-product-advertisement-f_2753819045%20(1).png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lMmM3ZWJiMC1kYzE1LTRiZjctOTY1Yy03ZjEyZWNiZjg0ZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmb3Rvc3Byb2Zyb250L2ZyZWVwaWtfYS1wcm9kdWN0LWFkdmVydGlzZW1lbnQtZl8yNzUzODE5MDQ1ICgxKS5wbmciLCJpYXQiOjE3NzU3ODczMjYsImV4cCI6NDkyOTM4NzMyNn0.6WhZzZD1JqsrF9wfKakZ4cFzgpP_ctoENJ9wOaxMgzU',
+  banner_5: 'https://xkendhhppcuwnuhpvcnh.supabase.co/storage/v1/object/sign/fotosprofront/freepik_a-triptych-advertisement-_2753934032.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9lMmM3ZWJiMC1kYzE1LTRiZjctOTY1Yy03ZjEyZWNiZjg0ZWIiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJmb3Rvc3Byb2Zyb250L2ZyZWVwaWtfYS10cmlwdHljaC1hZHZlcnRpc2VtZW50LV8yNzUzOTM0MDMyLnBuZyIsImlhdCI6MTc3NTc4NzMzNiwiZXhwIjo0OTI5Mzg3MzM2fQ.jAJ1S_Ut6i9IJQhm_JCdrs-iLKHsfGYvJ3DtBUw7Cgo',
   promo_card_1: 'https://www.drogariaspacheco.com.br/arquivos/dpa-ativa_mais-beleza_01-04-26_card1-340x504.png?v=639102318742430000',
   promo_card_2: 'https://www.drogariaspacheco.com.br/arquivos/dpa-ativa_ever-vitaminas_01-04-26_card2-340x504.png?v=639102312544800000',
   promo_card_3: 'https://www.drogariaspacheco.com.br/arquivos/dpa-trade_galderma-cetaphil_06-04-26_card4-340x504.png?v=639107572629830000',
