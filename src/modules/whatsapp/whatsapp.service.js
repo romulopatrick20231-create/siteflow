@@ -1,10 +1,38 @@
 import { supabase } from "../../lib/supabase.js"
 
-const WHAPI_BASE_URL = process.env.WHAPI_BASE_URL ?? "https://gate.whapi.cloud"
-const WHAPI_TOKEN = process.env.WHAPI_TOKEN ?? ""
-const WORKER_INTERVAL_MS = 3000
-const MAX_ATTEMPTS = 3
-const BATCH_SIZE = 5
+const GLOBAL_BASE_URL = process.env.WHAPI_BASE_URL ?? "https://gate.whapi.cloud"
+const GLOBAL_TOKEN    = process.env.WHAPI_TOKEN ?? ""
+const WORKER_INTERVAL = 3000
+const MAX_ATTEMPTS    = 3
+const BATCH_SIZE      = 5
+
+const credentialsCache = new Map()
+const CACHE_TTL = 5 * 60 * 1000
+
+async function getStoreCredentials(storeId) {
+  if (!storeId) return { baseUrl: GLOBAL_BASE_URL, token: GLOBAL_TOKEN }
+
+  const cached = credentialsCache.get(storeId)
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data
+
+  const { data } = await supabase
+    .from("stores")
+    .select("whapi_token, whapi_base_url")
+    .eq("id", storeId)
+    .single()
+
+  const result = {
+    baseUrl: data?.whapi_base_url || GLOBAL_BASE_URL,
+    token:   data?.whapi_token   || GLOBAL_TOKEN,
+  }
+
+  credentialsCache.set(storeId, { data: result, ts: Date.now() })
+  return result
+}
+
+export function invalidateStoreCache(storeId) {
+  credentialsCache.delete(storeId)
+}
 
 function formatPhone(phone) {
   let p = phone.replace(/\+/g, "").replace(/\s/g, "")
@@ -12,41 +40,39 @@ function formatPhone(phone) {
   return p
 }
 
-function randomDelay(min, max) {
+function delay(min, max) {
   const ms = Math.floor(Math.random() * (max - min + 1)) + min
-  return new Promise((resolve) => setTimeout(resolve, ms))
+  return new Promise(r => setTimeout(r, ms))
 }
 
-async function sendNow(phone, message) {
-  const url = `${WHAPI_BASE_URL.replace(/\/$/, "")}/messages/text`
-  const response = await fetch(url, {
+async function sendNow(phone, message, storeId) {
+  const { baseUrl, token } = await getStoreCredentials(storeId)
+  const url = `${baseUrl.replace(/\/$/, "")}/messages/text`
+
+  const res = await fetch(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${WHAPI_TOKEN}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ to: formatPhone(phone), body: message }),
   })
 
-  if (!response.ok) {
-    const text = await response.text()
-    throw new Error(`Whapi ${response.status}: ${text}`)
+  if (!res.ok) {
+    const text = await res.text()
+    throw new Error(`Whapi ${res.status}: ${text}`)
   }
 }
 
-export async function enqueueMessage(phone, message) {
+export async function enqueueMessage(phone, message, storeId = null) {
   const { error } = await supabase.from("message_queue").insert({
     phone,
     message,
+    store_id: storeId,
     status: "pending",
     attempts: 0,
   })
-
-  if (error) {
-    console.error("❌ Erro ao enfileirar mensagem:", error.message)
-  } else {
-    console.log("📩 Mensagem enfileirada:", phone)
-  }
+  if (error) console.error("❌ Enqueue error:", error.message)
 }
 
 async function processQueue() {
@@ -58,40 +84,28 @@ async function processQueue() {
     .order("created_at", { ascending: true })
     .limit(BATCH_SIZE)
 
-  if (error || !messages || messages.length === 0) return
+  if (error || !messages?.length) return
 
   for (const msg of messages) {
-    await supabase
-      .from("message_queue")
-      .update({ status: "processing" })
-      .eq("id", msg.id)
+    await supabase.from("message_queue").update({ status: "processing" }).eq("id", msg.id)
 
     try {
-      await randomDelay(2000, 5000)
-      await sendNow(msg.phone, msg.message)
-
-      await supabase
-        .from("message_queue")
+      await delay(1500, 3500)
+      await sendNow(msg.phone, msg.message, msg.store_id)
+      await supabase.from("message_queue")
         .update({ status: "sent", sent_at: new Date().toISOString() })
         .eq("id", msg.id)
-
-      console.log("✅ Mensagem enviada:", msg.phone)
+      console.log("✅ Sent:", msg.phone)
     } catch (err) {
-      await supabase
-        .from("message_queue")
-        .update({
-          status: "failed",
-          attempts: (msg.attempts ?? 0) + 1,
-          last_error: err.message,
-        })
+      await supabase.from("message_queue")
+        .update({ status: "failed", attempts: (msg.attempts ?? 0) + 1, last_error: err.message })
         .eq("id", msg.id)
-
-      console.error("❌ Erro ao enviar:", msg.phone, err.message)
+      console.error("❌ Failed:", msg.phone, err.message)
     }
   }
 }
 
 export function startMessageWorker() {
-  console.log("🚀 WhatsApp worker iniciado")
-  setInterval(processQueue, WORKER_INTERVAL_MS)
+  console.log("🚀 WhatsApp worker started")
+  setInterval(processQueue, WORKER_INTERVAL)
 }
