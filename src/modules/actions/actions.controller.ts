@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express"
 import { findById } from "../customer/customer.service"
 import { updateStatus, getById } from "../order/order.service"
-import { sendMessage } from "../whatsapp/sender.service"
+import { enqueueMessage } from "../whatsapp/whatsapp.service"
 import { Tenant } from "../tenant/tenant.types"
 import { authMiddleware } from "../../middlewares/auth.middleware"
 
@@ -24,11 +24,6 @@ router.post("/actions/send-route-message", authMiddleware, async (req: Request, 
     return res.status(403).json({ error: "Forbidden" })
   }
 
-  const tenant = tenantStore.get(tenant_id)
-  if (!tenant) {
-    return res.status(404).json({ error: "Tenant not found" })
-  }
-
   const customer = await findById(customer_id)
   if (!customer) {
     return res.status(404).json({ error: "Customer not found" })
@@ -43,7 +38,7 @@ router.post("/actions/send-route-message", authMiddleware, async (req: Request, 
   }
 
   const name = customer.name ?? "Cliente"
-  await sendMessage(tenant, customer.phone, `${name}, seu pedido saiu para entrega 🚀\nChega em breve!`)
+  enqueueMessage(customer.phone, `${name}, seu pedido saiu para entrega 🚀\nChega em breve!`)
 
   return res.json({ success: true })
 })
@@ -62,6 +57,12 @@ router.patch("/actions/mark-paid", authMiddleware, async (req: Request, res: Res
   const order = await updateStatus(order_id, "paid", req.user!.tenant_id)
   if (!order) {
     return res.status(404).json({ error: "Order not found" })
+  }
+
+  const customer = await findById(order.customer_id)
+  if (customer) {
+    const name = customer.name ?? "Cliente"
+    enqueueMessage(customer.phone, `${name}, seu pagamento foi confirmado! ✅\nObrigado pela preferência.`)
   }
 
   return res.json(order)

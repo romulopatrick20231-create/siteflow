@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express"
 import { findByPhone, createCustomer, updateName, updateAddress, findById as findCustomerById } from "../customer/customer.service"
 import { createOrder, getOrdersByTenant, getById, updateStatus, PaymentMethod, OrderStatus } from "./order.service"
-import { sendMessage } from "../whatsapp/sender.service"
+import { enqueueMessage } from "../whatsapp/whatsapp.service"
 import { Tenant } from "../tenant/tenant.types"
 import { authMiddleware } from "../../middlewares/auth.middleware"
 
@@ -122,15 +122,8 @@ router.post("/orders/from-site", async (req: Request, res: Response) => {
     address,
   })
 
-  const tenant = tenantStore.get(tenant_id)
-  if (tenant) {
-    const name = customer.name ?? customerData.name ?? "Cliente"
-    await sendMessage(
-      tenant,
-      customer.phone,
-      `${name}, seu pedido foi recebido! ✅\nEm breve atualizamos o status.`
-    )
-  }
+  const name = customer.name ?? customerData.name ?? "Cliente"
+  enqueueMessage(customer.phone, `${name}, seu pedido foi recebido! ✅\nEm breve atualizamos o status.`)
 
   return res.status(201).json({ success: true, order_id: order.id })
 })
