@@ -54,6 +54,7 @@ import storeAdminRouter                from "./src/routes/storeAdmin.js";  // or
 import merchantRouter                  from "./src/routes/merchant.js";    // painel do lojista
 import adminOrdersRouter               from "./src/routes/adminOrders.js"; // super admin: stores/orders/revenue
 import whatsappRouter                 from "./src/routes/whatsapp.js";    // per-store whatsapp + ai agent
+import agentConfigRouter             from "./src/routes/agentConfig.js"; // admin: configure agents + providers
 
 // ── App + HTTP server ─────────────────────────────────────────────────────────
 const app        = express();
@@ -209,7 +210,8 @@ app.use("/",            storeRouter);              // order system: /store/:slug
 app.use("/store-admin", storeAdminRouter);         // order system admin: stores, categories, products
 app.use("/merchant",    merchantRouter);           // painel do lojista
 app.use("/admin",       adminOrdersRouter);        // super admin: /admin/stores, /admin/orders, /admin/revenue
-app.use("/whatsapp",   whatsappRouter);           // per-store whatsapp: webhook, send, conversations, settings
+app.use("/whatsapp",     whatsappRouter);           // per-store whatsapp: webhook, send, conversations, settings
+app.use("/agent-config", agentConfigRouter);       // admin: configure agents, providers, followup, CRM
 
 // ── 404 — no route matched ────────────────────────────────────────────────────
 app.use((_req, res) => {
