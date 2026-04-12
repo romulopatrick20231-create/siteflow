@@ -2,8 +2,8 @@ import { Router } from "express"
 import { supabase } from "../lib/supabase.js"
 import { invalidateStoreCache, sendDirect } from "../modules/whatsapp/whatsapp.service.js"
 import { PROVIDER_FIELDS } from "../modules/whatsapp/providers.js"
-import { authMiddleware } from "../middleware/auth.js"
-import { adminGuard } from "../middleware/adminGuard.js"
+import { requireAuth as authMiddleware } from "../middleware/auth.js"
+import { requireAdmin as adminGuard } from "../middleware/adminGuard.js"
 
 const router = Router()
 
