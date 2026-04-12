@@ -131,6 +131,16 @@ const NICHE_NORMALIZE_MAP = {
   'escola': 'Escola / Curso', 'curso': 'Escola / Curso',
   'mecanica': 'Oficina Mecânica', 'mecânica': 'Oficina Mecânica',
   'negocio local': 'Negócio Local', 'negócio local': 'Negócio Local',
+  // delivery aliases — frontend display names → backend canonical names
+  'açaiteria': 'Açaiteria', 'acaiteria': 'Açaiteria',
+  'sorveteria': 'Sorveteria',
+  'farmacia classica': 'Farmácia', 'farmácia clássica': 'Farmácia', 'farmacia clássica': 'Farmácia',
+  'farmácia clássica': 'Farmácia',
+  'farmacia moderna': 'Farmácia', 'farmácia moderna': 'Farmácia',
+  'drogaria premium': 'Drogaria',
+  'hamburgueria': 'Hamburgueria',
+  'pizzaria': 'Pizzaria',
+  'restaurante': 'Restaurante',
 };
 
 function normalizeNiche(req, _res, next) {
@@ -159,7 +169,9 @@ const generateSingleSchema = Joi.object({
     "Restaurante", "Pizzaria", "Padaria", "Hamburgueria",
     "Escritório de Advocacia", "Escritório de Contabilidade", "Imobiliária",
     "Academia / Studio Fitness", "Escola / Curso", "Oficina Mecânica",
-    "Negócio Local"
+    "Negócio Local",
+    "Açaiteria",
+    "Sorveteria"
   ).default("Negócio Local"),
   city:         Joi.string().max(100).trim().allow("", null),
   phone:        Joi.string().max(20).trim().allow("", null),
@@ -179,6 +191,8 @@ const VALID_NICHES = [
   "Escritório de Advocacia", "Escritório de Contabilidade", "Imobiliária",
   "Academia / Studio Fitness", "Escola / Curso", "Oficina Mecânica",
   "Negócio Local",
+  "Açaiteria",
+  "Sorveteria",
 ];
 const leadSchema = Joi.object({
   businessName:   Joi.string().max(150).trim().required(),

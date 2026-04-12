@@ -44,6 +44,10 @@ const NICHE_CATEGORIES = {
   "Escola / Curso":              "educacao",
   "Oficina Mecânica":            "oficina",
   "Negócio Local":               "generico",
+  "Drogaria":                    "clinica",
+  "Farmácia de Manipulação":     "clinica",
+  "Açaiteria":                   "restaurante",
+  "Sorveteria":                  "restaurante",
 };
 
 export function getNicheCategory(niche) {
