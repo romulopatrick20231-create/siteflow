@@ -686,6 +686,56 @@ router.post(
   })
 );
 
+// \u2500\u2500 POST /admin/users/:id/impersonate \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Gera um token de sessão para o usuário alvo usando o service role do Supabase.
+// Retorna { access_token, refresh_token, user } para o admin fazer login como esse usuário.
+router.post(
+  "/users/:id/impersonate",
+  asyncHandler(async (req, res) => {
+    const targetId = req.params.id;
+
+    if (targetId === req.userId) {
+      return res.status(400).json({ success: false, error: "Não pode impersonar a si mesmo" });
+    }
+
+    const db = getAdminClient();
+
+    const user = await getUser(targetId);
+    if (!user) throw new NotFoundError("User");
+
+    // Gera magic link via service role (não envia email, só retorna o token)
+    const { data, error } = await db.auth.admin.generateLink({
+      type:  "magiclink",
+      email: user.email,
+    });
+
+    if (error || !data?.properties?.hashed_token) {
+      logger.error("Impersonate: falha ao gerar link", { adminId: req.userId, targetId, error: error?.message });
+      return res.status(500).json({ success: false, error: "Não foi possível gerar sessão" });
+    }
+
+    // Troca o OTP por uma sessão real
+    const { data: session, error: sessionError } = await db.auth.verifyOtp({
+      email: user.email,
+      token: data.properties.hashed_token,
+      type:  "magiclink",
+    });
+
+    if (sessionError || !session?.session) {
+      logger.error("Impersonate: falha ao verificar OTP", { adminId: req.userId, targetId, error: sessionError?.message });
+      return res.status(500).json({ success: false, error: "Falha ao criar sessão de impersonação" });
+    }
+
+    logger.warn("Admin impersonating user", { adminId: req.userId, targetUser: targetId, email: user.email });
+
+    send(res, {
+      access_token:  session.session.access_token,
+      refresh_token: session.session.refresh_token,
+      user: { id: user.id, email: user.email, plan: user.plan },
+    });
+  })
+);
+
 /**
  * GET /admin/template-check?niche=Farmácia
  * Diagnóstico público — sem auth. Confirma qual template está ativo no Railway.
