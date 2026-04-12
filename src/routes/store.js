@@ -264,5 +264,37 @@ router.patch(
       .from('store_orders')
       .update({ status: 'paid', paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .eq('id', req.params.id);
+    if (storeId) query = query.eq('store_id', storeId);
 
-  
+    const { data: order, error } = await query.select('id, store_id, status').single();
+
+    if (error || !order) {
+      return res.status(404).json({ success: false, error: 'Pedido nao encontrado' });
+    }
+
+    emitToStore(order.store_id, 'order_update', { order, message: null });
+    emitToTenant(order.store_id, 'order_updated', { order_id: order.id, status: 'paid' });
+
+    send(res, { order });
+  })
+);
+
+/**
+ * GET /orders/store/:storeId
+ */
+router.get(
+  '/orders/store/:storeId',
+  requireAuth,
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { status, limit, offset } = req.query;
+    const orders = await listOrders(req.params.storeId, {
+      status,
+      limit:  limit  ? parseInt(limit,  10) : 50,
+      offset: offset ? parseInt(offset, 10) : 0,
+    });
+    send(res, orders);
+  })
+);
+
+export default router;

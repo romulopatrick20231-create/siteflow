@@ -126,4 +126,40 @@ async function processFollowups() {
     try {
       const storeConf = await getStoreConfig(item.store_id)
 
-      // Skip if agent is dis
+      // Skip if agent is disabled for this tenant
+      if (storeConf.ai && storeConf.ai.enabled === false) {
+        await supabase.from("followup_queue").update({ status: "cancelled" }).eq("id", item.id)
+        continue
+      }
+
+      // Check store open/close status
+      const { data: storeSetting } = await supabase
+        .from("store_settings")
+        .select("is_open")
+        .eq("tenant_id", item.store_id)
+        .single()
+
+      if (storeSetting && storeSetting.is_open === false) {
+        continue
+      }
+
+      // Rate limit per tenant
+      if (!checkFollowupRate(item.store_id)) {
+        console.warn("Followup rate limit reached for tenant", item.store_id)
+        continue
+      }
+
+      const { provider, config } = storeConf
+      await sendViaProvider(item.phone, item.message, provider, config)
+      await supabase.from("followup_queue").update({ status: "sent" }).eq("id", item.id)
+    } catch (err) {
+      await supabase.from("followup_queue").update({ status: "cancelled" }).eq("id", item.id)
+    }
+  }
+}
+
+export function startMessageWorker() {
+  console.log("WhatsApp worker started")
+  setInterval(processQueue, WORKER_INTERVAL)
+  setInterval(processFollowups, 30000)
+}

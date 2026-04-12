@@ -493,4 +493,8 @@ export async function deleteStoreProduct(productId, storeId) {
   const db = getAdminClient();
   const { error } = await db
     .from('store_products')
-    .delete
+    .delete()
+    .eq('id', productId)
+    .eq('store_id', storeId);
+  if (error) throw Object.assign(new Error('Erro ao deletar produto'), { statusCode: 500 });
+}
