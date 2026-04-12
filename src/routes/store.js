@@ -18,6 +18,7 @@ import { asyncHandler, send } from '../utils/asyncHandler.js';
 import { requireAuth }        from '../middleware/auth.js';
 import { requireAdmin }       from '../middleware/adminGuard.js';
 import { getAdminClient }     from '../saas/db.js';
+import { emitToStore, emitToTenant } from '../saas/socketService.js';
 import {
   getStoreBySlug,
   getStoreProducts,
@@ -249,24 +250,19 @@ router.patch(
 );
 
 /**
- * GET /orders/store/:storeId
- * List orders for a store. Admin only.
- *
- * Query params: ?status=pending&limit=50&offset=0
+ * PATCH /orders/:id/paid
+ * Mark an order as paid. Sets status to 'paid' and records paid_at timestamp.
  */
-router.get(
-  '/orders/store/:storeId',
+router.patch(
+  '/orders/:id/paid',
   requireAuth,
-  requireAdmin,
   asyncHandler(async (req, res) => {
-    const { status, limit, offset } = req.query;
-    const orders = await listOrders(req.params.storeId, {
-      status,
-      limit:  limit  ? parseInt(limit,  10) : 50,
-      offset: offset ? parseInt(offset, 10) : 0,
-    });
-    send(res, orders);
-  })
-);
+    const db = getAdminClient();
+    const { storeId } = req.body;
 
-export default router;
+    let query = db
+      .from('store_orders')
+      .update({ status: 'paid', paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq('id', req.params.id);
+
+  
