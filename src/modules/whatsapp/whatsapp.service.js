@@ -96,22 +96,6 @@ async function processQueue() {
   }
 }
 
-// Per-tenant rate limiting: track messages sent in the current minute window
-const followupRateMap = new Map() // tenantId -> { count, windowStart }
-const FOLLOWUP_RATE_LIMIT = 30    // max msgs per minute per tenant
-
-function checkFollowupRate(tenantId) {
-  const now = Date.now()
-  const entry = followupRateMap.get(tenantId)
-  if (!entry || now - entry.windowStart > 60_000) {
-    followupRateMap.set(tenantId, { count: 1, windowStart: now })
-    return true
-  }
-  if (entry.count >= FOLLOWUP_RATE_LIMIT) return false
-  entry.count++
-  return true
-}
-
 async function processFollowups() {
   const { data: items } = await supabase
     .from("followup_queue")
@@ -124,6 +108,18 @@ async function processFollowups() {
 
   for (const item of items) {
     try {
-      const storeConf = await getStoreConfig(item.store_id)
+      await sendViaProvider(item.phone, item.message, ...(await getStoreConfig(item.store_id)).provider ? [] : [])
+      const { provider, config } = await getStoreConfig(item.store_id)
+      await sendViaProvider(item.phone, item.message, provider, config)
+      await supabase.from("followup_queue").update({ status: "sent" }).eq("id", item.id)
+    } catch (err) {
+      await supabase.from("followup_queue").update({ status: "cancelled" }).eq("id", item.id)
+    }
+  }
+}
 
-      // Skip if agent is dis
+export function startMessageWorker() {
+  console.log("🚀 WhatsApp worker started")
+  setInterval(processQueue, WORKER_INTERVAL)
+  setInterval(processFollowups, 30000)
+}

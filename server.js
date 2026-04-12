@@ -32,9 +32,9 @@ import logger                            from "./src/utils/logger.js";
 import { globalLimiter, globalSlowDown } from "./src/middleware/rateLimiter.js";
 import { AppError }                      from "./src/utils/errors.js";
 
-// ── Route imports ─────────────────────────────────────────────────────────────
+// -- Route imports -------------------------------------------------------------
 import authRouter                       from "./src/routes/auth.js";
-import siteRouter                       from "./src/routes/site.js";      // single-site convenience
+import siteRouter                       from "./src/routes/site.js";
 import sitesRouter                      from "./src/routes/sites.js";
 import contentRouter                    from "./src/routes/content.js";
 import productsRouter                   from "./src/routes/products.js";
@@ -47,44 +47,39 @@ import checkoutRouter                                from "./src/routes/checkout
 import { ecommerceWebhookRouter }                    from "./src/routes/webhookEcommerce.js";
 import domainRouter                                  from "./src/routes/domain.js";
 import adminRouter                      from "./src/routes/admin.js";
-import generateRouter                   from "./src/routes/generate.js";  // admin bulk generation (v1)
-import generateBatchRouter             from "./src/routes/generateBatch.js"; // niche-aware generation (v2)
-import storeRouter                     from "./src/routes/store.js";       // order system (public)
-import storeAdminRouter                from "./src/routes/storeAdmin.js";  // order system (admin)
-import merchantRouter                  from "./src/routes/merchant.js";    // painel do lojista
-import adminOrdersRouter               from "./src/routes/adminOrders.js"; // super admin: stores/orders/revenue
-import whatsappRouter                 from "./src/routes/whatsapp.js";    // per-store whatsapp + ai agent
-import agentConfigRouter             from "./src/routes/agentConfig.js"; // admin: configure agents + providers
-import storeStatusRouter             from "./src/routes/storeStatus.js"; // store open/close + dashboard
-import agentRouter                   from "./src/routes/agentRoute.js";  // tenant: agent config + suggest-prompt
-import messagingRouter               from "./src/routes/messagingConfig.js"; // tenant: messaging provider config
+import generateRouter                   from "./src/routes/generate.js";
+import generateBatchRouter             from "./src/routes/generateBatch.js";
+import storeRouter                     from "./src/routes/store.js";
+import storeAdminRouter                from "./src/routes/storeAdmin.js";
+import merchantRouter                  from "./src/routes/merchant.js";
+import adminOrdersRouter               from "./src/routes/adminOrders.js";
+import whatsappRouter                 from "./src/routes/whatsapp.js";
+import agentConfigRouter             from "./src/routes/agentConfig.js";
+import storeStatusRouter             from "./src/routes/storeStatus.js";
+import agentRouter                   from "./src/routes/agentRoute.js";
+import messagingRouter               from "./src/routes/messagingConfig.js";
 
-// ── App + HTTP server ─────────────────────────────────────────────────────────
+// -- App + HTTP server ---------------------------------------------------------
 const app        = express();
 const httpServer = createServer(app);
 
-// Trust reverse proxy (Render, Railway, Fly.io) for correct req.ip / protocol
 app.set("trust proxy", 1);
 
-// ── Security headers (helmet) ─────────────────────────────────────────────────
+// -- Security headers ----------------------------------------------------------
 app.use(helmet({
-  // This is a pure JSON API — no HTML document is served from this server
   contentSecurityPolicy:         false,
   crossOriginResourcePolicy:     { policy: "cross-origin" },
   crossOriginOpenerPolicy:       false,
 }));
 
-
-// ── CORS ──────────────────────────────────────────────────────────────────────
+// -- CORS ----------------------------------------------------------------------
 const allowedOrigins = (!env.CORS_ORIGIN || env.CORS_ORIGIN === "*")
   ? "*"
   : env.CORS_ORIGIN.split(",").map(s => s.trim()).filter(Boolean);
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // no origin = same-origin or server-to-server — always allow
     if (!origin) return callback(null, true);
-    // wildcard: reflect the actual origin so credentials work
     if (allowedOrigins === "*") return callback(null, origin);
     if (allowedOrigins.includes(origin)) return callback(null, origin);
     return callback(new Error("Not allowed by CORS"));
@@ -97,9 +92,9 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options("*", cors(corsOptions)); // explicit preflight for all routes
+app.options("*", cors(corsOptions));
 
-// ── Socket.io ─────────────────────────────────────────────────────────────────
+// -- Socket.io -----------------------------------------------------------------
 const io = new SocketServer(httpServer, {
   cors: {
     origin:      allowedOrigins === "*" ? true : allowedOrigins,
@@ -108,7 +103,6 @@ const io = new SocketServer(httpServer, {
   },
 });
 
-// Lojistas entram na room da sua loja: socket.join("store:{storeId}")
 io.on("connection", (socket) => {
   socket.on("join_store", (storeId) => {
     if (storeId) socket.join(`store:${storeId}`);
@@ -124,37 +118,32 @@ io.on("connection", (socket) => {
   });
 });
 
-// Compartilha a instância com todos os serviços via singleton
 initSocket(io);
 
-// ── Stripe webhooks — RAW body MUST come before express.json() ────────────────
-// Stripe verifies the signature against the raw Buffer.
-// express.json() would consume the stream first and break verification.
-app.use("/stripe/webhook",  webhookRouter);          // subscription billing
-app.use("/webhook/stripe",  ecommerceWebhookRouter); // e-commerce purchases
+// -- Stripe webhooks (raw body BEFORE json parser) ----------------------------
+app.use("/stripe/webhook",  webhookRouter);
+app.use("/webhook/stripe",  ecommerceWebhookRouter);
 
-// ── Body parser ───────────────────────────────────────────────────────────────
-// 10mb limit: base64-encoded images via POST /images can approach 7-8 MB
+// -- Body parser ---------------------------------------------------------------
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
-// ── Global rate limiting ──────────────────────────────────────────────────────
-// Progressive delay starts at 80% of the hard limit (configured in env)
+// -- Global rate limiting ------------------------------------------------------
 app.use(globalSlowDown);
 app.use(globalLimiter);
 
-// ── Request logging ───────────────────────────────────────────────────────────
+// -- Request logging -----------------------------------------------------------
 app.use((req, _res, next) => {
   logger.debug("incoming", {
-    method:    req.method,
-    path:      req.path,
-    ip:        req.ip,
-    ua:        req.get("user-agent"),
+    method: req.method,
+    path:   req.path,
+    ip:     req.ip,
+    ua:     req.get("user-agent"),
   });
   next();
 });
 
-// ── Health check (no auth, not rate-limited by global limiter order) ──────────
+// -- Health check --------------------------------------------------------------
 app.get("/health", (_req, res) => {
   res.json({
     status:    "ok",
@@ -165,14 +154,12 @@ app.get("/health", (_req, res) => {
   });
 });
 
-// ── Template check (público, sem auth) ───────────────────────────────────────
+// -- Template check ------------------------------------------------------------
 app.get("/template-check", async (req, res) => {
   try {
     const { getTemplate } = await import("./src/saas/templates/index.js");
-    const niche = (req.query.niche || "Farmácia").toString();
+    const niche = (req.query.niche || "Farmacia").toString();
     const fn    = getTemplate(niche);
-
-    // Gera um HTML mínimo para inspecionar qual template foi usado
     let isLovable = false;
     let htmlSize  = 0;
     if (fn) {
@@ -182,25 +169,23 @@ app.get("/template-check", async (req, res) => {
         images: [], content: { pages: [] },
       });
       htmlSize  = html.length;
-      // Template Lovable tem >500KB e contém "TESTE_CHECK" (FarmaZap substituído)
       isLovable = html.length > 500_000 && html.includes("TESTE_CHECK");
     }
-
     res.json({
       niche,
-      template:    fn ? (fn.toString().includes("buildFarmaciaHTML") ? "buildFarmaciaHTML" : fn.name) : null,
+      template:   fn ? (fn.toString().includes("buildFarmaciaHTML") ? "buildFarmaciaHTML" : fn.name) : null,
       isLovable,
-      htmlSizeKB:  Math.round(htmlSize / 1024),
-      timestamp:   new Date().toISOString(),
+      htmlSizeKB: Math.round(htmlSize / 1024),
+      timestamp:  new Date().toISOString(),
     });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// ── Mount routes ──────────────────────────────────────────────────────────────
+// -- Mount routes --------------------------------------------------------------
 app.use("/auth",     authRouter);
-app.use("/site",     siteRouter);     // single-site convenience (GET/PUT /site, POST /site/publish)
+app.use("/site",     siteRouter);
 app.use("/sites",    sitesRouter);
 app.use("/content",  contentRouter);
 app.use("/products", productsRouter);
@@ -212,36 +197,35 @@ app.use("/billing",   billingRouter);
 app.use("/checkout",  checkoutRouter);
 app.use("/domain",    domainRouter);
 app.use("/admin",    adminRouter);
-app.use("/generate",       generateRouter);      // admin bulk generation (v1 — legacy)
-app.use("/generate-batch", generateBatchRouter); // niche-aware generation (v2)
-app.use("/",            storeRouter);              // order system: /store/:slug, /products/:storeId, /orders
-app.use("/store-admin", storeAdminRouter);         // order system admin: stores, categories, products
-app.use("/merchant",    merchantRouter);           // painel do lojista
-app.use("/admin",       adminOrdersRouter);        // super admin: /admin/stores, /admin/orders, /admin/revenue
-app.use("/whatsapp",     whatsappRouter);           // per-store whatsapp: webhook, send, conversations, settings
-app.use("/agent-config", agentConfigRouter);       // admin: configure agents, providers, followup, CRM
-app.use("/store",        storeStatusRouter);       // GET|PATCH /store/status, PUT /store/notice, GET /store/dashboard
-app.use("/agent",        agentRouter);             // GET|PUT /agent/config, POST /agent/suggest-prompt
-app.use("/messaging",    messagingRouter);         // GET|PUT /messaging/config, POST /messaging/test
+app.use("/generate",       generateRouter);
+app.use("/generate-batch", generateBatchRouter);
+app.use("/",            storeRouter);
+app.use("/store-admin", storeAdminRouter);
+app.use("/merchant",    merchantRouter);
+app.use("/admin",       adminOrdersRouter);
+app.use("/whatsapp",     whatsappRouter);
+app.use("/agent-config", agentConfigRouter);
+app.use("/store",        storeStatusRouter);   // GET|PATCH /store/status, PUT /store/notice, GET /store/dashboard
+app.use("/agent",        agentRouter);         // GET|PUT /agent/config, POST /agent/suggest-prompt
+app.use("/messaging",    messagingRouter);     // GET|PUT /messaging/config, POST /messaging/test
 
 // WhatsApp webhook at canonical path expected by providers
 app.post("/webhook/:tenantId/whatsapp", async (req, res) => {
-  req.params.storeId = req.params.tenantId;
-  const { handleIncomingMessage } = await import("./src/modules/agent/agent.service.js");
   try {
     const body    = req.body;
     const phone   = body?.messages?.[0]?.from || body?.from;
     const message = body?.messages?.[0]?.text?.body || body?.text?.body || body?.body;
     if (!phone || !message) return res.sendStatus(200);
     const cleanPhone = phone.replace(/\D/g, "").replace(/^55/, "");
+    const { handleIncomingMessage } = await import("./src/modules/agent/agent.service.js");
     handleIncomingMessage({ storeId: req.params.tenantId, phone: cleanPhone, message }).catch(() => {});
     res.sendStatus(200);
-  } catch {
+  } catch (_e) {
     res.sendStatus(200);
   }
 });
 
-// ── 404 — no route matched ────────────────────────────────────────────────────
+// -- 404 -----------------------------------------------------------------------
 app.use((_req, res) => {
   res.status(404).json({
     success:   false,
@@ -251,27 +235,23 @@ app.use((_req, res) => {
   });
 });
 
-// ── Global error handler ──────────────────────────────────────────────────────
-// 4-argument signature is required for Express to treat this as error middleware.
+// -- Global error handler ------------------------------------------------------
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, _next) => {
   const statusCode    = err.statusCode || 500;
   const isOperational = err instanceof AppError;
 
   if (!isOperational || statusCode >= 500) {
-    // Unexpected errors — log with full context
     logger.error("unhandled error", {
-      error:   err.message,
-      code:    err.code,
-      // Never log stack traces in production (sensitive paths)
-      stack:   env.IS_PROD ? undefined : err.stack,
-      method:  req.method,
-      path:    req.path,
-      userId:  req.userId ?? null,
-      ip:      req.ip,
+      error:  err.message,
+      code:   err.code,
+      stack:  env.IS_PROD ? undefined : err.stack,
+      method: req.method,
+      path:   req.path,
+      userId: req.userId ?? null,
+      ip:     req.ip,
     });
   } else {
-    // Known operational errors (4xx) — log as warnings
     logger.warn("request error", {
       error:  err.message,
       code:   err.code,
@@ -281,7 +261,43 @@ app.use((err, req, res, _next) => {
     });
   }
 
-  // Never expose stack trace or implementation details in the response
   res.status(statusCode).json({
     success:   false,
-    error:     i
+    error:     isOperational ? err.message : "Internal server error",
+    code:      err.code || "INTERNAL_ERROR",
+    ...(err.details && { details: err.details }),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// -- Start server --------------------------------------------------------------
+const server = httpServer.listen(env.PORT, async () => {
+  logger.info("ForgeSites API started", {
+    port: env.PORT,
+    env:  env.NODE_ENV,
+    pid:  process.pid,
+  });
+
+  const { startMessageWorker } = await import("./src/modules/whatsapp/whatsapp.service.js");
+  startMessageWorker();
+});
+
+// -- Graceful shutdown ---------------------------------------------------------
+function shutdown(signal) {
+  logger.info(`${signal} received — shutting down gracefully`);
+
+  server.close(() => {
+    logger.info("HTTP server closed");
+    process.exit(0);
+  });
+
+  setTimeout(() => {
+    logger.error("Forced shutdown after timeout");
+    process.exit(1);
+  }, 10_000).unref();
+}
+
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT",  () => shutdown("SIGINT"));
+
+export default app;

@@ -10,7 +10,7 @@
  */
 
 import { getAdminClient }       from "./db.js";
-import { emitToStore, emitToTenant } from "./socketService.js";
+import { emitToStore }           from "./socketService.js";
 import {
   sendOrderConfirmation,
   sendOrderStatus,
@@ -259,7 +259,6 @@ export async function createOrder(body) {
 
   // ── Tempo real: notifica lojistas na room da loja ────────────────────────────
   emitToStore(storeId, 'new_order', fullOrder);
-  emitToTenant(storeId, 'new_order', { order_id: fullOrder.id });
 
   // ── WhatsApp: confirmação para o cliente (não trava o pedido se falhar) ──────
   sendOrderConfirmation(fullOrder).catch(() => {});
@@ -314,7 +313,6 @@ export async function updateOrderStatus(orderId, newStatus, requestedByStoreId) 
 
   // ── Tempo real: notifica lojistas e clientes na room da loja ─────────────────
   emitToStore(order.store_id, 'order_update', { order, message });
-  emitToTenant(order.store_id, 'order_updated', { order_id: order.id, status: newStatus });
 
   // ── WhatsApp: avisa cliente que saiu para entrega (não trava se falhar) ───────
   if (newStatus === 'delivering' && order.customer_phone) {
@@ -493,4 +491,9 @@ export async function deleteStoreProduct(productId, storeId) {
   const db = getAdminClient();
   const { error } = await db
     .from('store_products')
-    .delete
+    .delete()
+    .eq('id', productId)
+    .eq('store_id', storeId);
+  if (error) throw new Error(`deleteStoreProduct: ${error.message}`);
+  return { deleted: true };
+}
