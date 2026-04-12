@@ -1,6 +1,6 @@
 import { Router } from "express"
 import { supabase } from "../lib/supabase.js"
-import { handleIncomingMessage, getConversationSummary, clearConversationHistory } from "../modules/agent/agent.service.js"
+import { handleIncomingMessage, getHistory_exported as getConversationSummary, clearHistory as clearConversationHistory } from "../modules/agent/agent.service.js"
 import { enqueueMessage, invalidateStoreCache } from "../modules/whatsapp/whatsapp.service.js"
 import { requireAuth as authMiddleware } from "../middleware/auth.js"
 
