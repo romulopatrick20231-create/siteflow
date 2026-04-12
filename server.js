@@ -55,6 +55,9 @@ import merchantRouter                  from "./src/routes/merchant.js";    // pa
 import adminOrdersRouter               from "./src/routes/adminOrders.js"; // super admin: stores/orders/revenue
 import whatsappRouter                 from "./src/routes/whatsapp.js";    // per-store whatsapp + ai agent
 import agentConfigRouter             from "./src/routes/agentConfig.js"; // admin: configure agents + providers
+import storeStatusRouter             from "./src/routes/storeStatus.js"; // store open/close + dashboard
+import agentRouter                   from "./src/routes/agentRoute.js";  // tenant: agent config + suggest-prompt
+import messagingRouter               from "./src/routes/messagingConfig.js"; // tenant: messaging provider config
 
 // ── App + HTTP server ─────────────────────────────────────────────────────────
 const app        = express();
@@ -110,9 +113,14 @@ io.on("connection", (socket) => {
   socket.on("join_store", (storeId) => {
     if (storeId) socket.join(`store:${storeId}`);
   });
-
   socket.on("leave_store", (storeId) => {
     if (storeId) socket.leave(`store:${storeId}`);
+  });
+  socket.on("join_tenant", (tenantId) => {
+    if (tenantId) socket.join(`tenant_${tenantId}`);
+  });
+  socket.on("leave_tenant", (tenantId) => {
+    if (tenantId) socket.leave(`tenant_${tenantId}`);
   });
 });
 
@@ -212,6 +220,26 @@ app.use("/merchant",    merchantRouter);           // painel do lojista
 app.use("/admin",       adminOrdersRouter);        // super admin: /admin/stores, /admin/orders, /admin/revenue
 app.use("/whatsapp",     whatsappRouter);           // per-store whatsapp: webhook, send, conversations, settings
 app.use("/agent-config", agentConfigRouter);       // admin: configure agents, providers, followup, CRM
+app.use("/store",        storeStatusRouter);       // GET|PATCH /store/status, PUT /store/notice, GET /store/dashboard
+app.use("/agent",        agentRouter);             // GET|PUT /agent/config, POST /agent/suggest-prompt
+app.use("/messaging",    messagingRouter);         // GET|PUT /messaging/config, POST /messaging/test
+
+// WhatsApp webhook at canonical path expected by providers
+app.post("/webhook/:tenantId/whatsapp", async (req, res) => {
+  req.params.storeId = req.params.tenantId;
+  const { handleIncomingMessage } = await import("./src/modules/agent/agent.service.js");
+  try {
+    const body    = req.body;
+    const phone   = body?.messages?.[0]?.from || body?.from;
+    const message = body?.messages?.[0]?.text?.body || body?.text?.body || body?.body;
+    if (!phone || !message) return res.sendStatus(200);
+    const cleanPhone = phone.replace(/\D/g, "").replace(/^55/, "");
+    handleIncomingMessage({ storeId: req.params.tenantId, phone: cleanPhone, message }).catch(() => {});
+    res.sendStatus(200);
+  } catch {
+    res.sendStatus(200);
+  }
+});
 
 // ── 404 — no route matched ────────────────────────────────────────────────────
 app.use((_req, res) => {
@@ -256,42 +284,4 @@ app.use((err, req, res, _next) => {
   // Never expose stack trace or implementation details in the response
   res.status(statusCode).json({
     success:   false,
-    error:     isOperational ? err.message : "Internal server error",
-    code:      err.code || "INTERNAL_ERROR",
-    ...(err.details  && { details: err.details }),
-    timestamp: new Date().toISOString(),
-  });
-});
-
-// ── Start server ──────────────────────────────────────────────────────────────
-const server = httpServer.listen(env.PORT, async () => {
-  logger.info("ForgeSites API started", {
-    port: env.PORT,
-    env:  env.NODE_ENV,
-    pid:  process.pid,
-  });
-
-  const { startMessageWorker } = await import("./src/modules/whatsapp/whatsapp.service.js");
-  startMessageWorker();
-});
-
-// ── Graceful shutdown ─────────────────────────────────────────────────────────
-function shutdown(signal) {
-  logger.info(`${signal} received — shutting down gracefully`);
-
-  server.close(() => {
-    logger.info("HTTP server closed");
-    process.exit(0);
-  });
-
-  // Force-kill if connections don't drain within 10s
-  setTimeout(() => {
-    logger.error("Forced shutdown after timeout");
-    process.exit(1);
-  }, 10_000).unref();
-}
-
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT",  () => shutdown("SIGINT"));
-
-export default app;
+    error:     i
