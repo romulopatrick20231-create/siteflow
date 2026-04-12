@@ -55,6 +55,7 @@ import {
   updateSiteStripe,
   adminDisableSite,
   adminEnableSite,
+  adminDeleteSite,
 } from "../saas/admin.js";
 import { buildSitesV2, buildSiteForUser } from "../saas/siteBuilderV2.js";
 import { getSiteForBuild }               from "../saas/sites.js";
@@ -733,6 +734,18 @@ router.post(
       refresh_token: session.session.refresh_token,
       user: { id: user.id, email: user.email, plan: user.plan },
     });
+  })
+);
+
+// \u2500\u2500 DELETE /admin/sites/:id \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+// Hard-delete um site e dados filhos (products, orders, store_settings).
+router.delete(
+  "/sites/:id",
+  asyncHandler(async (req, res) => {
+    const siteId = req.params.id;
+    const result = await adminDeleteSite(siteId);
+    logger.warn("Admin deleted site", { adminId: req.userId, siteId });
+    send(res, result);
   })
 );
 

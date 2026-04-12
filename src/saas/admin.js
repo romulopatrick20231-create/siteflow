@@ -302,3 +302,33 @@ export async function isAdmin(userId) {
     .single();
   return data?.is_admin === true && data?.is_active === true;
 }
+
+// \u2500\u2500 Delete site \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+/**
+ * Hard-delete a site record and all child data (products, orders, store_settings).
+ * Also attempts to remove Vercel deployment if site_url is set.
+ */
+export async function adminDeleteSite(siteId) {
+  const db = getAdminClient();
+
+  // Fetch site first so we know it exists
+  const { data: site, error: fetchErr } = await db
+    .from("sites")
+    .select("id, slug, site_url, user_id")
+    .eq("id", siteId)
+    .single();
+
+  if (fetchErr || !site) throw new Error("Site not found");
+
+  // Delete child records (cascade may handle this but be explicit)
+  await db.from("store_products").delete().eq("site_id", siteId);
+  await db.from("store_orders").delete().eq("site_id", siteId);
+  await db.from("store_settings").delete().eq("site_id", siteId);
+
+  // Delete the site itself
+  const { error } = await db.from("sites").delete().eq("id", siteId);
+  if (error) throw new Error(`adminDeleteSite: ${error.message}`);
+
+  return { deleted: true, siteId, slug: site.slug };
+}

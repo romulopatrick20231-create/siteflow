@@ -52,14 +52,9 @@ export function emitToStore(storeId, event, payload) {
     logger.warn('socketService.emitToStore: io não inicializado', { storeId, event });
     return;
   }
+
   const room = `store:${storeId}`;
   _io.to(room).emit(event, payload);
-  logger.debug('Socket emitido', { room, event });
-}
 
-export function emitToTenant(tenantId, event, payload) {
-  if (!_io) return;
-  const room = `tenant_${tenantId}`;
-  _io.to(room).emit(event, payload);
   logger.debug('Socket emitido', { room, event });
 }
