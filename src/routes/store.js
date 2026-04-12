@@ -18,7 +18,6 @@ import { asyncHandler, send } from '../utils/asyncHandler.js';
 import { requireAuth }        from '../middleware/auth.js';
 import { requireAdmin }       from '../middleware/adminGuard.js';
 import { getAdminClient }     from '../saas/db.js';
-import { emitToStore, emitToTenant } from '../saas/socketService.js';
 import {
   getStoreBySlug,
   getStoreProducts,
@@ -250,37 +249,10 @@ router.patch(
 );
 
 /**
- * PATCH /orders/:id/paid
- * Mark an order as paid. Sets status to 'paid' and records paid_at timestamp.
- */
-router.patch(
-  '/orders/:id/paid',
-  requireAuth,
-  asyncHandler(async (req, res) => {
-    const db = getAdminClient();
-    const { storeId } = req.body;
-
-    let query = db
-      .from('store_orders')
-      .update({ status: 'paid', paid_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq('id', req.params.id);
-    if (storeId) query = query.eq('store_id', storeId);
-
-    const { data: order, error } = await query.select('id, store_id, status').single();
-
-    if (error || !order) {
-      return res.status(404).json({ success: false, error: 'Pedido nao encontrado' });
-    }
-
-    emitToStore(order.store_id, 'order_update', { order, message: null });
-    emitToTenant(order.store_id, 'order_updated', { order_id: order.id, status: 'paid' });
-
-    send(res, { order });
-  })
-);
-
-/**
  * GET /orders/store/:storeId
+ * List orders for a store. Admin only.
+ *
+ * Query params: ?status=pending&limit=50&offset=0
  */
 router.get(
   '/orders/store/:storeId',
